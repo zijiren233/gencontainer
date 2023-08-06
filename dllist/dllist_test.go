@@ -1,4 +1,4 @@
-package list
+package dllist
 
 import "testing"
 

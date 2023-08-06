@@ -1,4 +1,5 @@
-package list
+// doubly linked list
+package dllist
 
 type Element[Item any] struct {
 	next, prev *Element[Item]

@@ -9,9 +9,7 @@ type VecConf[T any] func(*Vec[T])
 // Preallocates memory for the vector.
 func WithCap[T any](c int) VecConf[T] {
 	return func(v *Vec[T]) {
-		if v.data == nil {
-			v.data = make([]T, 0, c)
-		} else if c > v.Cap() {
+		if v.data == nil || c > v.Cap() {
 			v.Resize(c)
 		}
 	}
@@ -20,12 +18,9 @@ func WithCap[T any](c int) VecConf[T] {
 func WithValues[T any](val ...T) VecConf[T] {
 	return func(v *Vec[T]) {
 		if v.data == nil {
-			l := len(val)
-			v.data = make([]T, l, 2*l)
-			copy(v.data, val)
-		} else {
-			v.data = append(v.data, val...)
+			v.Resize(len(val))
 		}
+		v.data = append(v.data, val...)
 	}
 }
 
@@ -73,7 +68,11 @@ func (v *Vec[T]) Remove(i int) (e T, ok bool) {
 		return
 	}
 	val := v.data[i]
-	v.data = append(v.data[:i], v.data[i+1:]...)
+	if i == v.Len()-1 {
+		v.data = v.data[:i]
+	} else {
+		v.data = append(v.data[:i], v.data[i+1:]...)
+	}
 	return val, true
 }
 
@@ -105,9 +104,9 @@ func (v *Vec[T]) Clear() {
 	v.Resize(0)
 }
 
-func (v *Vec[T]) Contain(comparm func(v T) (matched bool)) (matched bool) {
+func (v *Vec[T]) Contain(compare func(v T) (matched bool)) (matched bool) {
 	v.Range(func(i int, v T) bool {
-		if comparm(v) {
+		if compare(v) {
 			matched = true
 			return false
 		}
@@ -160,6 +159,10 @@ func (v *Vec[T]) Resize(size int) {
 	if size < 0 {
 		return
 	}
+	if v.data == nil {
+		v.data = make([]T, 0, size)
+		return
+	}
 	l := v.Len()
 	c := v.Cap()
 	if size < l {
@@ -198,4 +201,26 @@ func (v *Vec[T]) Swap(i, j int) {
 		return
 	}
 	v.data[i], v.data[j] = v.data[j], v.data[i]
+}
+
+func (v *Vec[T]) ConpareAndDelete(i int, compare func(v T) (delete bool)) (e T, ok bool) {
+	if i < 0 || i >= v.Len() {
+		return
+	}
+	if compare(v.data[i]) {
+		return v.Remove(i)
+	}
+	return
+}
+
+func (v *Vec[T]) ConpareAndSwap(i int, val T, compare func(v T) (swap bool)) (e T, ok bool) {
+	if i < 0 || i >= v.Len() {
+		return
+	}
+	if compare(v.data[i]) {
+		d := v.data[i]
+		v.data[i] = val
+		return d, true
+	}
+	return
 }
