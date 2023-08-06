@@ -84,6 +84,14 @@ func (v *Vec[T]) Get(i int) (e T, ok bool) {
 	return v.data[i], true
 }
 
+func (v *Vec[T]) Set(i int, val T) (ok bool) {
+	if i >= v.Len() || i < 0 {
+		return
+	}
+	v.data[i] = val
+	return true
+}
+
 func (v *Vec[T]) Cap() int {
 	return cap(v.data)
 }

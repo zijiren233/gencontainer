@@ -123,3 +123,14 @@ func TestClear(t *testing.T) {
 		t.Fatal("wrong values")
 	}
 }
+
+func TestGetSet(t *testing.T) {
+	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	if e, ok := v.Get(0); !ok || e != 1 {
+		t.Fatal("wrong get")
+	}
+	v.Set(0, 10)
+	if e, ok := v.Get(0); !ok || e != 10 {
+		t.Fatal("wrong get")
+	}
+}
