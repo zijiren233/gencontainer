@@ -134,3 +134,14 @@ func TestGetSet(t *testing.T) {
 		t.Fatal("wrong get")
 	}
 }
+
+func TestRemove(t *testing.T) {
+	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v.Insert(1, 10, 11, 12)
+	if e, ok := v.Remove(1); !ok || e != 10 {
+		t.Fatal("wrong remove")
+	}
+	if !utils.EqualSlice(v.Slice(), []int{1, 11, 12, 2, 3, 4, 5, 6}) {
+		t.Fatal("wrong values")
+	}
+}

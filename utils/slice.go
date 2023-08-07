@@ -1,6 +1,8 @@
 package utils
 
-func EqualSlice[T comparable](a, b []T) bool {
+import "github.com/zijiren233/gencontainer/restrictions"
+
+func EqualSlice[T restrictions.Ordered](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
 	}

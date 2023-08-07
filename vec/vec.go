@@ -1,13 +1,15 @@
 package vec
 
-type Vec[T any] struct {
+import "github.com/zijiren233/gencontainer/restrictions"
+
+type Vec[T restrictions.Ordered] struct {
 	data []T
 }
 
-type VecConf[T any] func(*Vec[T])
+type VecConf[T restrictions.Ordered] func(*Vec[T])
 
 // Preallocates memory for the vector.
-func WithCap[T any](c int) VecConf[T] {
+func WithCap[T restrictions.Ordered](c int) VecConf[T] {
 	return func(v *Vec[T]) {
 		if v.data == nil || c > v.Cap() {
 			v.Resize(c)
@@ -15,7 +17,7 @@ func WithCap[T any](c int) VecConf[T] {
 	}
 }
 
-func WithValues[T any](val ...T) VecConf[T] {
+func WithValues[T restrictions.Ordered](val ...T) VecConf[T] {
 	return func(v *Vec[T]) {
 		if v.data == nil {
 			v.Resize(len(val))
@@ -24,7 +26,7 @@ func WithValues[T any](val ...T) VecConf[T] {
 	}
 }
 
-func New[T any](conf ...VecConf[T]) *Vec[T] {
+func New[T restrictions.Ordered](conf ...VecConf[T]) *Vec[T] {
 	vec := &Vec[T]{}
 	for _, c := range conf {
 		c(vec)
@@ -54,7 +56,8 @@ func (v *Vec[T]) Pop() (e T, ok bool) {
 	return val, true
 }
 
-// Insert into any position.
+// Insert into restrictions.Ordered position.
+//
 // if i < 0 or i out of range, panic.
 func (v *Vec[T]) Insert(i int, val ...T) {
 	if i > v.Len() || i < 0 {
@@ -185,7 +188,9 @@ func (v *Vec[T]) Resize(size int) {
 }
 
 // SplitOff splits the vector into two at the given index.
+//
 // if i < 0 or i out of range, return false.
+//
 // data dont overwrite each other.
 func (v *Vec[T]) SplitOff(i int) (*Vec[T], bool) {
 	if i < 0 || i > v.Len() {
@@ -203,24 +208,13 @@ func (v *Vec[T]) Swap(i, j int) {
 	v.data[i], v.data[j] = v.data[j], v.data[i]
 }
 
-func (v *Vec[T]) ConpareAndDelete(i int, compare func(v T) (delete bool)) (e T, ok bool) {
+// ConpareAndRemove removes the element at index i if it is equal to val.
+func (v *Vec[T]) ConpareAndRemove(i int, val T) (e T, ok bool) {
 	if i < 0 || i >= v.Len() {
 		return
 	}
-	if compare(v.data[i]) {
-		return v.Remove(i)
-	}
-	return
-}
-
-func (v *Vec[T]) ConpareAndSwap(i int, val T, compare func(v T) (swap bool)) (e T, ok bool) {
-	if i < 0 || i >= v.Len() {
-		return
-	}
-	if compare(v.data[i]) {
-		d := v.data[i]
-		v.data[i] = val
-		return d, true
+	if v.data[i] == val {
+		v.Remove(i)
 	}
 	return
 }

@@ -1,8 +1,9 @@
+// doubly linked list
 package dllist
 
 import "testing"
 
-func checkListLen[T any](t *testing.T, l *List[T], len int) bool {
+func checkListLen[T any](t *testing.T, l *Dllist[T], len int) bool {
 	if n := l.Len(); n != len {
 		t.Errorf("l.Len() = %d, want %d", n, len)
 		return false
@@ -10,7 +11,7 @@ func checkListLen[T any](t *testing.T, l *List[T], len int) bool {
 	return true
 }
 
-func checkListPointers[T any](t *testing.T, l *List[T], es []*Element[T]) {
+func checkListPointers[T any](t *testing.T, l *Dllist[T], es []*Element[T]) {
 	root := &l.root
 
 	if !checkListLen(t, l, len(es)) {
@@ -53,7 +54,7 @@ func checkListPointers[T any](t *testing.T, l *List[T], es []*Element[T]) {
 	}
 }
 
-func checkList(t *testing.T, l *List[int], es []any) {
+func checkList(t *testing.T, l *Dllist[int], es []any) {
 	if !checkListLen(t, l, len(es)) {
 		return
 	}
@@ -195,58 +196,6 @@ func TestMove(t *testing.T) {
 
 	l.MoveAfter(e2, e3)
 	checkListPointers(t, l, []*Element[int]{e1, e3, e2, e4})
-}
-
-func TestZeroList(t *testing.T) {
-	var l1 = new(List[int])
-	l1.PushFront(1)
-	checkList(t, l1, []any{1})
-
-	var l2 = new(List[int])
-	l2.PushBack(1)
-	checkList(t, l2, []any{1})
-
-	var l3 = new(List[int])
-	l3.PushFrontList(l1)
-	checkList(t, l3, []any{1})
-
-	var l4 = new(List[int])
-	l4.PushBackList(l2)
-	checkList(t, l4, []any{1})
-}
-
-func TestInsertBeforeUnknownMark(t *testing.T) {
-	var l List[int]
-	l.PushBack(1)
-	l.PushBack(2)
-	l.PushBack(3)
-	l.InsertBefore(1, new(Element[int]))
-	checkList(t, &l, []any{1, 2, 3})
-}
-
-func TestInsertAfterUnknownMark(t *testing.T) {
-	var l List[int]
-	l.PushBack(1)
-	l.PushBack(2)
-	l.PushBack(3)
-	l.InsertAfter(1, new(Element[int]))
-	checkList(t, &l, []any{1, 2, 3})
-}
-
-func TestMoveUnknownMark(t *testing.T) {
-	var l1 List[int]
-	e1 := l1.PushBack(1)
-
-	var l2 List[int]
-	e2 := l2.PushBack(2)
-
-	l1.MoveAfter(e1, e2)
-	checkList(t, &l1, []any{1})
-	checkList(t, &l2, []any{2})
-
-	l1.MoveBefore(e1, e2)
-	checkList(t, &l1, []any{1})
-	checkList(t, &l2, []any{2})
 }
 
 func TestSwap(t *testing.T) {

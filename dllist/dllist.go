@@ -4,7 +4,7 @@ package dllist
 type Element[Item any] struct {
 	next, prev *Element[Item]
 
-	list *List[Item]
+	list *Dllist[Item]
 
 	Value Item
 }
@@ -23,43 +23,40 @@ func (e *Element[T]) Prev() *Element[T] {
 	return nil
 }
 
-type List[Item any] struct {
+// Dllist represents a doubly linked list.
+type Dllist[Item any] struct {
 	root Element[Item]
 	len  int
 }
 
-func (l *List[T]) Init() *List[T] {
+func (l *Dllist[T]) Clear() *Dllist[T] {
 	l.root.next = &l.root
 	l.root.prev = &l.root
 	l.len = 0
 	return l
 }
 
-func New[T any]() *List[T] { return new(List[T]).Init() }
+func New[T any]() *Dllist[T] {
+	return new(Dllist[T]).Clear()
+}
 
-func (l *List[T]) Len() int { return l.len }
+func (l *Dllist[T]) Len() int { return l.len }
 
-func (l *List[T]) Front() *Element[T] {
+func (l *Dllist[T]) Front() *Element[T] {
 	if l.len == 0 {
 		return nil
 	}
 	return l.root.next
 }
 
-func (l *List[T]) Back() *Element[T] {
+func (l *Dllist[T]) Back() *Element[T] {
 	if l.len == 0 {
 		return nil
 	}
 	return l.root.prev
 }
 
-func (l *List[T]) lazyInit() {
-	if l.root.next == nil {
-		l.Init()
-	}
-}
-
-func (l *List[T]) insert(e, at *Element[T]) *Element[T] {
+func (l *Dllist[T]) insert(e, at *Element[T]) *Element[T] {
 	e.prev = at
 	e.next = at.next
 	e.prev.next = e
@@ -69,11 +66,11 @@ func (l *List[T]) insert(e, at *Element[T]) *Element[T] {
 	return e
 }
 
-func (l *List[T]) insertValue(v T, at *Element[T]) *Element[T] {
+func (l *Dllist[T]) insertValue(v T, at *Element[T]) *Element[T] {
 	return l.insert(&Element[T]{Value: v}, at)
 }
 
-func (l *List[T]) remove(e *Element[T]) {
+func (l *Dllist[T]) remove(e *Element[T]) {
 	e.prev.next = e.next
 	e.next.prev = e.prev
 	e.next = nil
@@ -82,7 +79,7 @@ func (l *List[T]) remove(e *Element[T]) {
 	l.len--
 }
 
-func (l *List[T]) move(e, at *Element[T]) {
+func (l *Dllist[T]) move(e, at *Element[T]) {
 	if e == at {
 		return
 	}
@@ -95,7 +92,7 @@ func (l *List[T]) move(e, at *Element[T]) {
 	e.next.prev = e
 }
 
-func (l *List[T]) Remove(e *Element[T]) T {
+func (l *Dllist[T]) Remove(e *Element[T]) T {
 	if e.list == l {
 
 		l.remove(e)
@@ -103,17 +100,15 @@ func (l *List[T]) Remove(e *Element[T]) T {
 	return e.Value
 }
 
-func (l *List[T]) PushFront(v T) *Element[T] {
-	l.lazyInit()
+func (l *Dllist[T]) PushFront(v T) *Element[T] {
 	return l.insertValue(v, &l.root)
 }
 
-func (l *List[T]) PushBack(v T) *Element[T] {
-	l.lazyInit()
+func (l *Dllist[T]) PushBack(v T) *Element[T] {
 	return l.insertValue(v, l.root.prev)
 }
 
-func (l *List[T]) InsertBefore(v T, mark *Element[T]) *Element[T] {
+func (l *Dllist[T]) InsertBefore(v T, mark *Element[T]) *Element[T] {
 	if mark.list != l {
 		return nil
 	}
@@ -121,7 +116,7 @@ func (l *List[T]) InsertBefore(v T, mark *Element[T]) *Element[T] {
 	return l.insertValue(v, mark.prev)
 }
 
-func (l *List[T]) InsertAfter(v T, mark *Element[T]) *Element[T] {
+func (l *Dllist[T]) InsertAfter(v T, mark *Element[T]) *Element[T] {
 	if mark.list != l {
 		return nil
 	}
@@ -129,7 +124,7 @@ func (l *List[T]) InsertAfter(v T, mark *Element[T]) *Element[T] {
 	return l.insertValue(v, mark)
 }
 
-func (l *List[T]) MoveToFront(e *Element[T]) {
+func (l *Dllist[T]) MoveToFront(e *Element[T]) {
 	if e.list != l || l.root.next == e {
 		return
 	}
@@ -137,7 +132,7 @@ func (l *List[T]) MoveToFront(e *Element[T]) {
 	l.move(e, &l.root)
 }
 
-func (l *List[T]) MoveToBack(e *Element[T]) {
+func (l *Dllist[T]) MoveToBack(e *Element[T]) {
 	if e.list != l || l.root.prev == e {
 		return
 	}
@@ -145,35 +140,33 @@ func (l *List[T]) MoveToBack(e *Element[T]) {
 	l.move(e, l.root.prev)
 }
 
-func (l *List[T]) MoveBefore(e, mark *Element[T]) {
+func (l *Dllist[T]) MoveBefore(e, mark *Element[T]) {
 	if e.list != l || e == mark || mark.list != l {
 		return
 	}
 	l.move(e, mark.prev)
 }
 
-func (l *List[T]) MoveAfter(e, mark *Element[T]) {
+func (l *Dllist[T]) MoveAfter(e, mark *Element[T]) {
 	if e.list != l || e == mark || mark.list != l {
 		return
 	}
 	l.move(e, mark)
 }
 
-func (l *List[T]) PushBackList(other *List[T]) {
-	l.lazyInit()
+func (l *Dllist[T]) PushBackList(other *Dllist[T]) {
 	for i, e := other.Len(), other.Front(); i > 0; i, e = i-1, e.Next() {
 		l.insertValue(e.Value, l.root.prev)
 	}
 }
 
-func (l *List[T]) PushFrontList(other *List[T]) {
-	l.lazyInit()
+func (l *Dllist[T]) PushFrontList(other *Dllist[T]) {
 	for i, e := other.Len(), other.Back(); i > 0; i, e = i-1, e.Prev() {
 		l.insertValue(e.Value, &l.root)
 	}
 }
 
-func (l *List[T]) Swap(a, b *Element[T]) {
+func (l *Dllist[T]) Swap(a, b *Element[T]) {
 	if a.list != l || b.list != l {
 		return
 	}
