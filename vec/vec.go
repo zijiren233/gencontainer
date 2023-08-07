@@ -1,6 +1,12 @@
 package vec
 
-import "github.com/zijiren233/gencontainer/restrictions"
+import (
+	"sort"
+
+	"github.com/zijiren233/gencontainer/restrictions"
+)
+
+var _ sort.Interface = (*Vec[int])(nil)
 
 type Vec[T restrictions.Ordered] struct {
 	data []T
@@ -74,7 +80,8 @@ func (v *Vec[T]) Remove(i int) (e T, ok bool) {
 	if i == v.Len()-1 {
 		v.data = v.data[:i]
 	} else {
-		v.data = append(v.data[:i], v.data[i+1:]...)
+		copy(v.data[i:], v.data[i+1:])
+		v.data = v.data[:v.Len()-1]
 	}
 	return val, true
 }
@@ -107,14 +114,47 @@ func (v *Vec[T]) Clear() {
 	v.Resize(0)
 }
 
-func (v *Vec[T]) Contain(compare func(v T) (matched bool)) (matched bool) {
+func (v *Vec[T]) FindFirst(val T) (index int, contain bool) {
 	v.Range(func(i int, v T) bool {
-		if compare(v) {
-			matched = true
+		if v == val {
+			index, contain = i, true
 			return false
 		}
 		return true
 	})
+	return
+}
+
+func (v *Vec[T]) FindLast(val T) (i int, ok bool) {
+	for i = v.Len() - 1; i >= 0; i-- {
+		if v.data[i] == val {
+			return i, true
+		}
+	}
+	return
+}
+
+func (v *Vec[T]) FindAll(val T) (ret []int) {
+	v.Range(func(i int, v T) bool {
+		if v == val {
+			ret = append(ret, i)
+		}
+		return true
+	})
+	return
+}
+
+func (v *Vec[T]) Find(cbk func(v T) (matched bool)) (ret []int) {
+	for i := 0; i < v.Len(); i++ {
+		if cbk(v.data[i]) {
+			ret = append(ret, i)
+		}
+	}
+	return
+}
+
+func (v *Vec[T]) Contain(val T) (contain bool) {
+	_, contain = v.FindFirst(val)
 	return
 }
 
@@ -217,4 +257,8 @@ func (v *Vec[T]) ConpareAndRemove(i int, val T) (e T, ok bool) {
 		v.Remove(i)
 	}
 	return
+}
+
+func (v *Vec[T]) Less(i, j int) bool {
+	return v.data[i] < v.data[j]
 }

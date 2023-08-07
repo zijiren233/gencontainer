@@ -54,3 +54,15 @@
     t.Fatal("wrong remove")
   }
   ```
+
+- `hashring`
+  > Hashring, also known as consistent hashing algorithm, is a technique used in programming. It provides a way to distribute data across multiple nodes in a scalable and efficient manner.
+  >
+  > The key features of hashring include load balancing and fault tolerance. It achieves this by mapping data to a ring-like structure using a hash function.
+  >
+  > Hashring finds applications in distributed caching, distributed databases, and content delivery networks (CDNs), enabling efficient data storage and retrieval across a distributed system.
+  ```go
+  hr := New[string](50, WithNodes("node1", "node2", "node3", "node4"))
+  n := hr.GetNode("somehash to get node")
+  // n = "node3"
+  ```

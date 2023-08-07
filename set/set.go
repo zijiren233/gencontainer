@@ -69,6 +69,12 @@ func (s *Set[T]) Clone() *Set[T] {
 	return set
 }
 
+func (s *Set[T]) Push(val ...T) {
+	for _, v := range val {
+		s.m[v] = struct{}{}
+	}
+}
+
 // Slice returns a slice of the set.
 // If value is not in the set, return true.
 // If value is in the set, return false.
@@ -106,6 +112,7 @@ func (s *Set[T]) Clear() {
 	s.m = make(map[T]struct{})
 }
 
+// If value is in the set, return true and remove it.
 func (s *Set[T]) ContainAndRemove(val T) (ok bool) {
 	return s.Remove(val)
 }

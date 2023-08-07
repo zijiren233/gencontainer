@@ -1,32 +1,64 @@
 // doubly linked list
 package dllist
 
-type Element[Item any] struct {
-	next, prev *Element[Item]
+import (
+	"reflect"
+	"sort"
+)
 
-	list *Dllist[Item]
-
-	Value Item
-}
-
-func (e *Element[T]) Next() *Element[T] {
-	if p := e.next; e.list != nil && p != &e.list.root {
-		return p
-	}
-	return nil
-}
-
-func (e *Element[T]) Prev() *Element[T] {
-	if p := e.prev; e.list != nil && p != &e.list.root {
-		return p
-	}
-	return nil
-}
+var _ sort.Interface = (*Dllist[int])(nil)
 
 // Dllist represents a doubly linked list.
 type Dllist[Item any] struct {
-	root Element[Item]
-	len  int
+	root     Element[Item]
+	len      int
+	lessFunc func(Item, Item) bool
+}
+
+type DllistConf[Item any] func(*Dllist[Item])
+
+func WithLessFunc[Item any](Less func(Item, Item) bool) DllistConf[Item] {
+	return func(l *Dllist[Item]) {
+		l.lessFunc = Less
+	}
+}
+
+func New[T any](conf ...DllistConf[T]) *Dllist[T] {
+	l := new(Dllist[T]).Clear()
+	for _, c := range conf {
+		c(l)
+	}
+	if l.lessFunc == nil {
+		l.setDefaultLessFunc()
+	}
+	return l
+}
+
+func (l *Dllist[T]) setDefaultLessFunc() (val T) {
+	v := reflect.Indirect(reflect.ValueOf(val))
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		l.lessFunc = func(a, b T) bool {
+			return reflect.ValueOf(a).Int() < reflect.ValueOf(b).Int()
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		l.lessFunc = func(a, b T) bool {
+			return reflect.ValueOf(a).Uint() < reflect.ValueOf(b).Uint()
+		}
+	case reflect.Float32, reflect.Float64:
+		l.lessFunc = func(a, b T) bool {
+			return reflect.ValueOf(a).Float() < reflect.ValueOf(b).Float()
+		}
+	case reflect.String:
+		l.lessFunc = func(a, b T) bool {
+			return reflect.ValueOf(a).String() < reflect.ValueOf(b).String()
+		}
+	default:
+		l.lessFunc = func(a, b T) bool {
+			panic("dllist: less function is nil, pluse use WithLessFunc to set it")
+		}
+	}
+	return
 }
 
 func (l *Dllist[T]) Clear() *Dllist[T] {
@@ -36,11 +68,36 @@ func (l *Dllist[T]) Clear() *Dllist[T] {
 	return l
 }
 
-func New[T any]() *Dllist[T] {
-	return new(Dllist[T]).Clear()
+func (l *Dllist[T]) Get(i int) *Element[T] {
+	if i < 0 || i >= l.len {
+		return nil
+	}
+
+	var e *Element[T]
+
+	if i < l.len/2 {
+		e = l.root.next
+		for ; i > 0; i-- {
+			e = e.next
+		}
+	} else {
+		e = &l.root
+		for ; i < l.len; i++ {
+			e = e.prev
+		}
+	}
+
+	return e
 }
 
 func (l *Dllist[T]) Len() int { return l.len }
+
+func (l *Dllist[T]) Less(i, j int) bool {
+	if l.lessFunc == nil {
+		panic("dllist: less function is nil, pluse use WithLessFunc to set it")
+	}
+	return l.lessFunc(l.Get(i).Value, l.Get(j).Value)
+}
 
 func (l *Dllist[T]) Front() *Element[T] {
 	if l.len == 0 {
@@ -94,7 +151,6 @@ func (l *Dllist[T]) move(e, at *Element[T]) {
 
 func (l *Dllist[T]) Remove(e *Element[T]) T {
 	if e.list == l {
-
 		l.remove(e)
 	}
 	return e.Value
@@ -155,22 +211,40 @@ func (l *Dllist[T]) MoveAfter(e, mark *Element[T]) {
 }
 
 func (l *Dllist[T]) PushBackList(other *Dllist[T]) {
-	for i, e := other.Len(), other.Front(); i > 0; i, e = i-1, e.Next() {
+	for i, e := other.len, other.Front(); i > 0; i, e = i-1, e.Next() {
 		l.insertValue(e.Value, l.root.prev)
 	}
 }
 
 func (l *Dllist[T]) PushFrontList(other *Dllist[T]) {
-	for i, e := other.Len(), other.Back(); i > 0; i, e = i-1, e.Prev() {
+	for i, e := other.len, other.Back(); i > 0; i, e = i-1, e.Prev() {
 		l.insertValue(e.Value, &l.root)
 	}
 }
 
-func (l *Dllist[T]) Swap(a, b *Element[T]) {
-	if a.list != l || b.list != l {
+func (l *Dllist[T]) Swap(i, j int) {
+	if i == j {
 		return
 	}
-	if a == b {
+	if i > j {
+		i, j = j, i
+	}
+	if i < 0 || j >= l.len {
+		return
+	}
+	a := l.root.next
+	for ; i > 0; i-- {
+		a = a.next
+	}
+	b := l.root.next
+	for ; j > 0; j-- {
+		b = b.next
+	}
+	l.SwapElement(a, b)
+}
+
+func (l *Dllist[T]) SwapElement(a, b *Element[T]) {
+	if a.list != l || b.list != l || a == b {
 		return
 	}
 	if a.next == b {
@@ -197,4 +271,59 @@ func (l *Dllist[T]) Swap(a, b *Element[T]) {
 	b.next.prev = a
 	a.prev, b.prev = b.prev, a.prev
 	a.next, b.next = b.next, a.next
+}
+
+// dont remove element when iterating, it will stop the iteration
+func (l *Dllist[T]) Range(f func(e *Element[T]) (Continue bool)) (RangeAll bool) {
+	for e := l.Front(); e != nil; e = e.Next() {
+		if !f(e) {
+			return
+		}
+	}
+	return true
+}
+
+// DeepClone returns a new Dllist with a copy of l's elements.
+func (l *Dllist[T]) Slice() []T {
+	s := make([]T, 0, l.len)
+	l.Range(func(e *Element[T]) bool {
+		s = append(s, e.Value)
+		return true
+	})
+	return s
+}
+
+func (l *Dllist[T]) Sort() {
+	if l.len <= 1 {
+		return
+	}
+
+	pivot := l.Front().Value
+	smaller := New[T]()
+	larger := New[T]()
+	smaller.lessFunc = l.lessFunc
+	larger.lessFunc = l.lessFunc
+
+	for e := l.Front().Next(); e != nil; e = e.Next() {
+		if l.lessFunc(e.Value, pivot) {
+			smaller.PushBack(e.Value)
+		} else {
+			larger.PushBack(e.Value)
+		}
+	}
+
+	smaller.Sort()
+	larger.Sort()
+
+	l.Clear()
+
+	for e := smaller.Front(); e != nil; e = e.Next() {
+		l.PushBack(e.Value)
+	}
+
+	l.PushBack(pivot)
+
+	for e := larger.Front(); e != nil; e = e.Next() {
+		l.PushBack(e.Value)
+	}
 }

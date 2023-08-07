@@ -1,7 +1,10 @@
 // doubly linked list
 package dllist
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func checkListLen[T any](t *testing.T, l *Dllist[T], len int) bool {
 	if n := l.Len(); n != len {
@@ -199,16 +202,44 @@ func TestMove(t *testing.T) {
 }
 
 func TestSwap(t *testing.T) {
+	l1 := New[int]()
+	l1.PushBack(1)
+	l1.PushBack(2)
+	l1.PushBack(3)
+
+	l1.Swap(1, 2)
+	checkList(t, l1, []any{1, 3, 2})
+}
+
+func TestSwapElement(t *testing.T) {
 	l := New[int]()
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
 	e3 := l.PushBack(3)
-	l.Swap(e2, e2)
+	l.SwapElement(e2, e2)
 	checkListPointers(t, l, []*Element[int]{e1, e2, e3})
-	l.Swap(e2, e3)
+	l.SwapElement(e2, e3)
 	checkListPointers(t, l, []*Element[int]{e1, e3, e2})
-	l.Swap(e1, e3)
+	l.SwapElement(e1, e3)
 	checkListPointers(t, l, []*Element[int]{e3, e1, e2})
-	l.Swap(e1, e1)
+	l.SwapElement(e1, e1)
 	checkListPointers(t, l, []*Element[int]{e3, e1, e2})
+}
+
+func TestPushAfter(t *testing.T) {
+	l := New[int]()
+	l.PushBack(1)
+	e := l.PushBack(2)
+	l.PushBack(3)
+	e.InsertAfter(4)
+	checkList(t, l, []any{1, 2, 4, 3})
+}
+
+func TestSort(t *testing.T) {
+	l := New[int]()
+	l.PushBack(3)
+	l.PushBack(1)
+	l.PushBack(2)
+	sort.Sort(l)
+	checkList(t, l, []any{1, 2, 3})
 }

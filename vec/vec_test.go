@@ -79,14 +79,10 @@ func TestInsert(t *testing.T) {
 
 func TestContain(t *testing.T) {
 	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
-	if !v.Contain(func(v int) (matched bool) {
-		return v == 1
-	}) {
+	if !v.Contain(1) {
 		t.Fatal("wrong contain")
 	}
-	if v.Contain(func(v int) (matched bool) {
-		return v == 10
-	}) {
+	if v.Contain(10) {
 		t.Fatal("wrong contain")
 	}
 }
