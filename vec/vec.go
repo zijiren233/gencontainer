@@ -134,10 +134,10 @@ func (v *Vec[T]) FindLast(val T) (i int, ok bool) {
 	return
 }
 
-func (v *Vec[T]) FindAll(val T) (ret []int) {
+func (v *Vec[T]) FindAll(val T) (indexes []int) {
 	v.Range(func(i int, v T) bool {
 		if v == val {
-			ret = append(ret, i)
+			indexes = append(indexes, i)
 		}
 		return true
 	})

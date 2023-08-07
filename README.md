@@ -66,3 +66,20 @@
   n := hr.GetNode("somehash to get node")
   // n = "node3"
   ```
+
+- `rwmap`
+  > This rwmap is similar to sync.Map
+  >
+  > Support for generics, more utility methods
+  ```go
+  m := rwmap.New[int, int]()
+	m.Store(1, 1)
+	m.Store(2, 2)
+	m.Store(3, 3)
+	if v := m.LoadAndDeleteAll(); len(v) != 3 {
+		t.Errorf("LoadAndDeleteAll() = %v, want 3", v)
+	}
+	if v := m.LoadAndDeleteAll(); len(v) != 0 {
+		t.Errorf("LoadAndDeleteAll() = %v, want 0", v)
+	}
+  ```
