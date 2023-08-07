@@ -4,90 +4,76 @@ package lhashmap
 import "github.com/zijiren233/gencontainer/dllist"
 
 type Lhashmap[K comparable, V any] struct {
-	m map[K]*LhashmapNode[K, V]
-	l dllist.Dllist[*LhashmapNode[K, V]]
+	m map[K]*dllist.Element[*entry[K, V]]
+	l *dllist.Dllist[*entry[K, V]]
+}
+
+type entry[K comparable, V any] struct {
+	k K
+	v V
 }
 
 type LHashMapConf[K comparable, V any] func(*Lhashmap[K, V])
 
 func WithCap[K comparable, V any](cap int) LHashMapConf[K, V] {
 	return func(m *Lhashmap[K, V]) {
-		m.m = make(map[K]*LhashmapNode[K, V], cap)
+		if m.m == nil {
+			m.m = make(map[K]*dllist.Element[*entry[K, V]], cap)
+		}
 	}
 }
 
 func New[K comparable, V any](conf ...LHashMapConf[K, V]) *Lhashmap[K, V] {
 	m := &Lhashmap[K, V]{
-		l: *dllist.New[*LhashmapNode[K, V]](nil),
+		l: dllist.New[*entry[K, V]](nil),
 	}
 	for _, c := range conf {
 		c(m)
 	}
 	if m.m == nil {
-		m.m = make(map[K]*LhashmapNode[K, V])
+		m.m = make(map[K]*dllist.Element[*entry[K, V]])
 	}
 	return m
 }
 
-func (m *Lhashmap[K, V]) Len() int {
-	return m.l.Len()
-}
-
-func (m *Lhashmap[K, V]) Get(k K) (v V, b bool) {
-	if n, ok := m.m[k]; ok {
-		return n.v, true
+func (l *Lhashmap[K, V]) Load(key K) (v V, ok bool) {
+	if element, ok := l.m[key]; ok {
+		l.l.MoveToFront(element)
+		return element.Value.v, true
 	}
 	return
 }
 
-// If the key already exists, the value will be updated, and the key will be moved to the end of the list.
-func (m *Lhashmap[K, V]) Set(k K, v V) {
-	if n, ok := m.m[k]; ok {
-		n.v = v
-		m.l.MoveToBack(n.e)
+func (l *Lhashmap[K, V]) Store(key K, value V) {
+	if element, ok := l.m[key]; ok {
+		element.Value.v = value
+		l.l.MoveToFront(element)
 		return
 	}
-	m.m[k] = NewNode(k, v).PushBack(m)
+	element := l.l.PushFront(&entry[K, V]{k: key, v: value})
+	l.m[key] = element
 }
 
-func (m *Lhashmap[K, V]) Delete(k K) {
-	if n, ok := m.m[k]; ok {
-		delete(m.m, k)
-		m.l.Remove(n.e)
+func (l *Lhashmap[K, V]) Remove(key K) {
+	if element, ok := l.m[key]; ok {
+		l.l.Remove(element)
+		delete(l.m, key)
 	}
 }
 
-// according to the order of insertion
-func (m *Lhashmap[K, V]) Keys() []K {
-	keys := make([]K, 0, m.Len())
-	for e := m.l.Front(); e != nil; e = e.Next() {
-		keys = append(keys, e.Value.k)
-	}
-	return keys
+func (l *Lhashmap[K, V]) Len() int {
+	return len(l.m)
 }
 
-// according to the order of insertion
-func (m *Lhashmap[K, V]) Values() []V {
-	values := make([]V, 0, m.Len())
-	for e := m.l.Front(); e != nil; e = e.Next() {
-		values = append(values, e.Value.v)
-	}
-	return values
-}
-
-func (m *Lhashmap[K, V]) IsEmpty() bool {
-	return m.Len() == 0
-}
-
-func (m *Lhashmap[K, V]) Clear() {
-	m.m = make(map[K]*LhashmapNode[K, V])
-	m.l.Clear()
-}
-
-func (m *Lhashmap[K, V]) Range(cbk func(e *LhashmapNode[K, V]) (Continue bool)) {
-	for e := m.l.Front(); e != nil; e = e.Next() {
-		if !cbk(e.Value) {
-			return
+func (l *Lhashmap[K, V]) Range(f func(k K, v V) bool) {
+	for e := l.l.Front(); e != nil; e = e.Next() {
+		if !f(e.Value.k, e.Value.v) {
+			break
 		}
 	}
+}
+
+func (l *Lhashmap[K, V]) Clear() {
+	l.m = make(map[K]*dllist.Element[*entry[K, V]])
+	l.l.Clear()
 }

@@ -3,43 +3,18 @@ package rwmap
 import (
 	"sync"
 
-	"golang.org/x/exp/maps"
+	"github.com/zijiren233/gencontainer/genmap"
 )
 
 type RWMap[K comparable, V any] struct {
-	m map[K]V
-	l sync.RWMutex
+	m *genmap.GenMap[K, V]
+	l *sync.RWMutex
 }
 
-type RWMapConf[K comparable, V any] func(*RWMap[K, V])
-
-func WithCap[K comparable, V any](cap int) RWMapConf[K, V] {
-	return func(m *RWMap[K, V]) {
-		if m.m == nil {
-			m.m = make(map[K]V, cap)
-		}
-	}
-}
-
-func WithValues[K comparable, V any](val map[K]V) RWMapConf[K, V] {
-	return func(m *RWMap[K, V]) {
-		if m.m == nil {
-			m.m = val
-		} else {
-			for k, v := range val {
-				m.m[k] = v
-			}
-		}
-	}
-}
-
-func New[K comparable, V any](conf ...RWMapConf[K, V]) *RWMap[K, V] {
-	m := &RWMap[K, V]{}
-	for _, c := range conf {
-		c(m)
-	}
-	if m.m == nil {
-		m.m = make(map[K]V)
+func New[K comparable, V any]() *RWMap[K, V] {
+	m := &RWMap[K, V]{
+		m: genmap.New[K, V](),
+		l: new(sync.RWMutex),
 	}
 	return m
 }
@@ -47,93 +22,79 @@ func New[K comparable, V any](conf ...RWMapConf[K, V]) *RWMap[K, V] {
 func (m *RWMap[K, V]) Len() int {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	return len(m.m)
+	return m.m.Len()
 }
 
 func (m *RWMap[K, V]) Load(k K) (v V, ok bool) {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	v, ok = m.m[k]
-	return
+	return m.m.Load(k)
 }
 
 func (m *RWMap[K, V]) Store(k K, v V) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	m.m[k] = v
+	m.m.Store(k, v)
 }
 
 func (m *RWMap[K, V]) Delete(k K) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	delete(m.m, k)
+	m.m.Delete(k)
 }
 
 func (m *RWMap[K, V]) Clone() *RWMap[K, V] {
 	m.l.RLock()
 	defer m.l.RUnlock()
+	return New[K, V]().CopyFrom(m)
+}
 
-	return New(WithValues(maps.Clone(m.m)))
+func (m *RWMap[K, V]) Map() map[K]V {
+	m.l.RLock()
+	defer m.l.RUnlock()
+	return m.m.Map()
 }
 
 func (m *RWMap[K, V]) Keys() []K {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	return maps.Keys(m.m)
+	return m.m.Keys()
 }
 
 func (m *RWMap[K, V]) Values() []V {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	return maps.Values(m.m)
+	return m.m.Values()
 }
 
 func (m *RWMap[K, V]) Range(f func(k K, v V) (Continue bool)) (RangeAll bool) {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	for k, v := range m.m {
-		if !f(k, v) {
-			return
-		}
-	}
-	return true
+	return m.m.Range(f)
 }
 
 func (m *RWMap[K, V]) LoadOrStore(k K, v V) (actual V, loaded bool) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	actual, loaded = m.m[k]
-	if loaded {
-		return
-	}
-	m.m[k] = v
-	return
+	return m.m.LoadOrStore(k, v)
 }
 
 func (m *RWMap[K, V]) LoadAndDelete(k K) (v V, loaded bool) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	v, loaded = m.m[k]
-	if loaded {
-		delete(m.m, k)
-	}
-	return
+	return m.m.LoadAndDelete(k)
 }
 
 func (m *RWMap[K, V]) LoadAndDeleteAll() map[K]V {
 	m.l.Lock()
 	defer m.l.Unlock()
-	mm := m.m
-	m.m = make(map[K]V)
-	return mm
+	return m.m.LoadAndDeleteAll()
 }
 
 func (m *RWMap[K, V]) LoadAndStore(k K, v V) (actual V, loaded bool) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	actual, loaded = m.m[k]
-	m.m[k] = v
-	return
+	return m.m.LoadAndStore(k, v)
 }
 
 func (m *RWMap[K, V]) EqualFunc(m2 *RWMap[K, V], eq func(V, V) bool) bool {
@@ -141,33 +102,49 @@ func (m *RWMap[K, V]) EqualFunc(m2 *RWMap[K, V], eq func(V, V) bool) bool {
 	defer m.l.RUnlock()
 	m2.l.RLock()
 	defer m2.l.RUnlock()
-	return maps.EqualFunc(m.m, m2.m, eq)
+	return m.m.EqualFunc(m2.m, eq)
 }
 
 func (m *RWMap[K, V]) Clear() {
 	m.l.Lock()
 	defer m.l.Unlock()
-	maps.Clear(m.m)
+	m.m.Clear()
 }
 
-func (m *RWMap[K, V]) Copy(src *RWMap[K, V]) {
+func (m *RWMap[K, V]) CopyFrom(src *RWMap[K, V]) (dst *RWMap[K, V]) {
 	m.l.Lock()
 	defer m.l.Unlock()
 	src.l.RLock()
 	defer src.l.RUnlock()
-	maps.Copy(m.m, src.m)
+	m.m.CopyFrom(src.m)
+	return m
 }
 
-func (m *RWMap[K, V]) CopyTo(dst *RWMap[K, V]) {
+func (m *RWMap[K, V]) CopyFromRaw(src map[K]V) (dst *RWMap[K, V]) {
+	m.l.Lock()
+	defer m.l.Unlock()
+	m.m.CopyFromRaw(src)
+	return m
+}
+
+func (m *RWMap[K, V]) CopyTo(dst *RWMap[K, V]) (src *RWMap[K, V]) {
 	m.l.RLock()
 	defer m.l.RUnlock()
 	dst.l.Lock()
 	defer dst.l.Unlock()
-	maps.Copy(dst.m, m.m)
+	m.m.CopyTo(dst.m)
+	return m
+}
+
+func (m *RWMap[K, V]) CopyToRaw(dst map[K]V) (src *RWMap[K, V]) {
+	m.l.RLock()
+	defer m.l.RUnlock()
+	m.m.CopyToRaw(dst)
+	return m
 }
 
 func (m *RWMap[K, V]) DeleteFunc(f func(k K, v V) bool) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	maps.DeleteFunc(m.m, f)
+	m.m.DeleteFunc(f)
 }

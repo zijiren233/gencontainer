@@ -48,22 +48,15 @@ func TestLen(t *testing.T) {
 	}
 }
 
-func TestWithCap(t *testing.T) {
-	m := New[int, int](WithCap[int, int](10))
-	if l := m.Len(); l != 0 {
-		t.Errorf("Len() = %v, want 0", l)
-	}
-}
-
 func TestWithValues(t *testing.T) {
-	m := New[int, int](WithValues[int, int](map[int]int{1: 1}))
+	m := New[int, int]().CopyFromRaw(map[int]int{1: 1})
 	if l := m.Len(); l != 1 {
 		t.Errorf("Len() = %v, want 1", l)
 	}
 }
 
 func TestWithValuesOverride(t *testing.T) {
-	m := New[int, int](WithValues[int, int](map[int]int{1: 1}), WithValues[int, int](map[int]int{1: 2}))
+	m := New[int, int]().CopyFromRaw(map[int]int{1: 1}).CopyFromRaw(map[int]int{1: 2})
 	if l := m.Len(); l != 1 {
 		t.Errorf("Len() = %v, want 1", l)
 	}
@@ -73,7 +66,7 @@ func TestWithValuesOverride(t *testing.T) {
 }
 
 func TestWithValuesOverride2(t *testing.T) {
-	m := New[int, int](WithValues[int, int](map[int]int{1: 1}), WithValues[int, int](map[int]int{2: 2}))
+	m := New[int, int]().CopyFromRaw(map[int]int{1: 1}).CopyFromRaw(map[int]int{2: 2})
 	if l := m.Len(); l != 2 {
 		t.Errorf("Len() = %v, want 2", l)
 	}
