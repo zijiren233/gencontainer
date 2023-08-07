@@ -48,7 +48,7 @@
 - `vector`
   > The structure of vector and slice is very similar, but vector provides more methods to manipulate data more conveniently
   ```go
-  v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+  v := vec.New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
   v.Insert(1, 10, 11, 12)
   if e, ok := v.Remove(1); !ok || e != 10 {
     t.Fatal("wrong remove")
@@ -62,7 +62,7 @@
   >
   > Hashring finds applications in distributed caching, distributed databases, and content delivery networks (CDNs), enabling efficient data storage and retrieval across a distributed system.
   ```go
-  hr := New[string](50, WithNodes("node1", "node2", "node3", "node4"))
+  hr := hashring.New[string](50, WithNodes("node1", "node2", "node3", "node4"))
   n := hr.GetNode("somehash to get node")
   // n = "node3"
   ```
