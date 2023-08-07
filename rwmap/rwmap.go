@@ -1,6 +1,10 @@
 package rwmap
 
-import "sync"
+import (
+	"sync"
+
+	"golang.org/x/exp/maps"
+)
 
 type RWMap[K comparable, V any] struct {
 	m map[K]V
@@ -65,40 +69,23 @@ func (m *RWMap[K, V]) Delete(k K) {
 	delete(m.m, k)
 }
 
-func (m *RWMap[K, V]) Clear() {
-	m.l.Lock()
-	defer m.l.Unlock()
-	m.m = make(map[K]V)
-}
-
 func (m *RWMap[K, V]) Clone() *RWMap[K, V] {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	mm := make(map[K]V, len(m.m))
-	for k, v := range m.m {
-		mm[k] = v
-	}
-	return &RWMap[K, V]{m: mm}
+
+	return New(WithValues(maps.Clone(m.m)))
 }
 
 func (m *RWMap[K, V]) Keys() []K {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	keys := make([]K, 0, len(m.m))
-	for k := range m.m {
-		keys = append(keys, k)
-	}
-	return keys
+	return maps.Keys(m.m)
 }
 
 func (m *RWMap[K, V]) Values() []V {
 	m.l.RLock()
 	defer m.l.RUnlock()
-	values := make([]V, 0, len(m.m))
-	for _, v := range m.m {
-		values = append(values, v)
-	}
-	return values
+	return maps.Values(m.m)
 }
 
 func (m *RWMap[K, V]) Range(f func(k K, v V) (Continue bool)) (RangeAll bool) {
@@ -147,4 +134,40 @@ func (m *RWMap[K, V]) LoadAndStore(k K, v V) (actual V, loaded bool) {
 	actual, loaded = m.m[k]
 	m.m[k] = v
 	return
+}
+
+func (m *RWMap[K, V]) EqualFunc(m2 *RWMap[K, V], eq func(V, V) bool) bool {
+	m.l.RLock()
+	defer m.l.RUnlock()
+	m2.l.RLock()
+	defer m2.l.RUnlock()
+	return maps.EqualFunc(m.m, m2.m, eq)
+}
+
+func (m *RWMap[K, V]) Clear() {
+	m.l.Lock()
+	defer m.l.Unlock()
+	maps.Clear(m.m)
+}
+
+func (m *RWMap[K, V]) Copy(src *RWMap[K, V]) {
+	m.l.Lock()
+	defer m.l.Unlock()
+	src.l.RLock()
+	defer src.l.RUnlock()
+	maps.Copy(m.m, src.m)
+}
+
+func (m *RWMap[K, V]) CopyTo(dst *RWMap[K, V]) {
+	m.l.RLock()
+	defer m.l.RUnlock()
+	dst.l.Lock()
+	defer dst.l.Unlock()
+	maps.Copy(dst.m, m.m)
+}
+
+func (m *RWMap[K, V]) DeleteFunc(f func(k K, v V) bool) {
+	m.l.Lock()
+	defer m.l.Unlock()
+	maps.DeleteFunc(m.m, f)
 }
