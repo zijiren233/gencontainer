@@ -7,12 +7,12 @@ import (
 
 	"github.com/zijiren233/gencontainer/dllist"
 	"github.com/zijiren233/gencontainer/restrictions"
-	"github.com/zijiren233/gencontainer/set"
+	"github.com/zijiren233/gencontainer/vec"
 )
 
 type HashRing[Node restrictions.Ordered] struct {
 	replicas    int
-	rawNoods    *set.Set[Node]
+	rawNoods    *vec.Vec[Node]
 	sortedNodes *dllist.Dllist[node[Node]]
 }
 
@@ -32,7 +32,7 @@ func WithNodes[Node restrictions.Ordered](nodes ...Node) HashRingConf[Node] {
 func New[Node restrictions.Ordered](replicas int, conf ...HashRingConf[Node]) *HashRing[Node] {
 	hr := &HashRing[Node]{
 		replicas: replicas,
-		rawNoods: set.New[Node](),
+		rawNoods: vec.New[Node](),
 		sortedNodes: dllist.New[node[Node]](dllist.WithLessFunc[node[Node]](
 			func(a, b node[Node]) bool {
 				return a.hash < b.hash
@@ -94,10 +94,11 @@ func (hr *HashRing[Node]) RemoveNodes(nodes ...Node) {
 	}
 	keys := make(map[uint32]struct{})
 	for _, n := range nodes {
-		if hr.rawNoods.ContainAndRemove(n) {
+		for _, v := range hr.rawNoods.FindAll(n) {
 			for i := 0; i < hr.replicas; i++ {
 				keys[hr.hashKey(n, i)] = struct{}{}
 			}
+			hr.rawNoods.Remove(v)
 		}
 	}
 	removeds := make([]*dllist.Element[node[Node]], 0, len(keys))

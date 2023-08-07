@@ -254,7 +254,7 @@ func (v *Vec[T]) ConpareAndRemove(i int, val T) (e T, ok bool) {
 		return
 	}
 	if v.data[i] == val {
-		v.Remove(i)
+		return v.Remove(i)
 	}
 	return
 }
