@@ -33,11 +33,9 @@ func New[Node constraints.Ordered](replicas int, conf ...HashRingConf[Node]) *Ha
 	hr := &HashRing[Node]{
 		replicas: replicas,
 		rawNoods: vec.New[Node](),
-		sortedNodes: dllist.New[node[Node]](dllist.WithLessFunc[node[Node]](
-			func(a, b node[Node]) bool {
-				return a.hash < b.hash
-			},
-		)),
+		sortedNodes: dllist.New[node[Node]](func(a, b node[Node]) bool {
+			return a.hash < b.hash
+		}),
 	}
 	for _, c := range conf {
 		c(hr)

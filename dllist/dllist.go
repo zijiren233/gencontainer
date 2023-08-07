@@ -3,32 +3,25 @@ package dllist
 
 import (
 	"reflect"
-	"sort"
 )
-
-var _ sort.Interface = (*Dllist[int])(nil)
 
 // Dllist represents a doubly linked list.
 type Dllist[Item any] struct {
-	root     Element[Item]
-	len      int
-	lessFunc func(Item, Item) bool
+	root    Element[Item]
+	len     int
+	cmpLess func(Item, Item) bool
 }
 
 type DllistConf[Item any] func(*Dllist[Item])
 
-func WithLessFunc[Item any](Less func(Item, Item) bool) DllistConf[Item] {
-	return func(l *Dllist[Item]) {
-		l.lessFunc = Less
-	}
-}
-
-func New[T any](conf ...DllistConf[T]) *Dllist[T] {
-	l := new(Dllist[T]).Clear()
+func New[T any](cmpLess func(T, T) bool, conf ...DllistConf[T]) *Dllist[T] {
+	l := (&Dllist[T]{
+		cmpLess: cmpLess,
+	}).Clear()
 	for _, c := range conf {
 		c(l)
 	}
-	if l.lessFunc == nil {
+	if l.cmpLess == nil {
 		l.setDefaultLessFunc()
 	}
 	return l
@@ -38,23 +31,23 @@ func (l *Dllist[T]) setDefaultLessFunc() (val T) {
 	v := reflect.Indirect(reflect.ValueOf(val))
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		l.lessFunc = func(a, b T) bool {
+		l.cmpLess = func(a, b T) bool {
 			return reflect.ValueOf(a).Int() < reflect.ValueOf(b).Int()
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		l.lessFunc = func(a, b T) bool {
+		l.cmpLess = func(a, b T) bool {
 			return reflect.ValueOf(a).Uint() < reflect.ValueOf(b).Uint()
 		}
 	case reflect.Float32, reflect.Float64:
-		l.lessFunc = func(a, b T) bool {
+		l.cmpLess = func(a, b T) bool {
 			return reflect.ValueOf(a).Float() < reflect.ValueOf(b).Float()
 		}
 	case reflect.String:
-		l.lessFunc = func(a, b T) bool {
+		l.cmpLess = func(a, b T) bool {
 			return reflect.ValueOf(a).String() < reflect.ValueOf(b).String()
 		}
 	default:
-		l.lessFunc = func(a, b T) bool {
+		l.cmpLess = func(a, b T) bool {
 			panic("dllist: less function is nil, pluse use WithLessFunc to set it")
 		}
 	}
@@ -91,13 +84,6 @@ func (l *Dllist[T]) Get(i int) *Element[T] {
 }
 
 func (l *Dllist[T]) Len() int { return l.len }
-
-func (l *Dllist[T]) Less(i, j int) bool {
-	if l.lessFunc == nil {
-		panic("dllist: less function is nil, pluse use WithLessFunc to set it")
-	}
-	return l.lessFunc(l.Get(i).Value, l.Get(j).Value)
-}
 
 func (l *Dllist[T]) Front() *Element[T] {
 	if l.len == 0 {
@@ -222,28 +208,7 @@ func (l *Dllist[T]) PushFrontList(other *Dllist[T]) {
 	}
 }
 
-func (l *Dllist[T]) Swap(i, j int) {
-	if i == j {
-		return
-	}
-	if i > j {
-		i, j = j, i
-	}
-	if i < 0 || j >= l.len {
-		return
-	}
-	a := l.root.next
-	for ; i > 0; i-- {
-		a = a.next
-	}
-	b := l.root.next
-	for ; j > 0; j-- {
-		b = b.next
-	}
-	l.SwapElement(a, b)
-}
-
-func (l *Dllist[T]) SwapElement(a, b *Element[T]) {
+func (l *Dllist[T]) Swap(a, b *Element[T]) {
 	if a.list != l || b.list != l || a == b {
 		return
 	}
@@ -299,13 +264,11 @@ func (l *Dllist[T]) Sort() {
 	}
 
 	pivot := l.Front().Value
-	smaller := New[T]()
-	larger := New[T]()
-	smaller.lessFunc = l.lessFunc
-	larger.lessFunc = l.lessFunc
+	smaller := New[T](l.cmpLess)
+	larger := New[T](l.cmpLess)
 
 	for e := l.Front().Next(); e != nil; e = e.Next() {
-		if l.lessFunc(e.Value, pivot) {
+		if l.cmpLess(e.Value, pivot) {
 			smaller.PushBack(e.Value)
 		} else {
 			larger.PushBack(e.Value)

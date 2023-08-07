@@ -18,7 +18,7 @@ func WithCap[K comparable, V any](cap int) LHashMapConf[K, V] {
 
 func New[K comparable, V any](conf ...LHashMapConf[K, V]) *Lhashmap[K, V] {
 	m := &Lhashmap[K, V]{
-		l: *dllist.New[*LhashmapNode[K, V]](),
+		l: *dllist.New[*LhashmapNode[K, V]](nil),
 	}
 	for _, c := range conf {
 		c(m)
