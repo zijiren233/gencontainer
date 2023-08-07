@@ -1,21 +1,18 @@
 package vec
 
 import (
-	"sort"
-
-	"github.com/zijiren233/gencontainer/restrictions"
+	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
-var _ sort.Interface = (*Vec[int])(nil)
-
-type Vec[T restrictions.Ordered] struct {
+type Vec[T constraints.Ordered] struct {
 	data []T
 }
 
-type VecConf[T restrictions.Ordered] func(*Vec[T])
+type VecConf[T constraints.Ordered] func(*Vec[T])
 
 // Preallocates memory for the vector.
-func WithCap[T restrictions.Ordered](c int) VecConf[T] {
+func WithCap[T constraints.Ordered](c int) VecConf[T] {
 	return func(v *Vec[T]) {
 		if v.data == nil || c > v.Cap() {
 			v.Resize(c)
@@ -23,16 +20,17 @@ func WithCap[T restrictions.Ordered](c int) VecConf[T] {
 	}
 }
 
-func WithValues[T restrictions.Ordered](val ...T) VecConf[T] {
+func WithValues[T constraints.Ordered](val ...T) VecConf[T] {
 	return func(v *Vec[T]) {
 		if v.data == nil {
-			v.Resize(len(val))
+			v.data = val
+		} else {
+			v.data = append(v.data, val...)
 		}
-		v.data = append(v.data, val...)
 	}
 }
 
-func New[T restrictions.Ordered](conf ...VecConf[T]) *Vec[T] {
+func New[T constraints.Ordered](conf ...VecConf[T]) *Vec[T] {
 	vec := &Vec[T]{}
 	for _, c := range conf {
 		c(vec)
@@ -60,16 +58,6 @@ func (v *Vec[T]) Pop() (e T, ok bool) {
 	val := v.data[v.Len()-1]
 	v.data = v.data[:v.Len()-1]
 	return val, true
-}
-
-// Insert into restrictions.Ordered position.
-//
-// if i < 0 or i out of range, panic.
-func (v *Vec[T]) Insert(i int, val ...T) {
-	if i > v.Len() || i < 0 {
-		panic("index out of range")
-	}
-	v.data = append(v.data[:i], append(val, v.data[i:]...)...)
 }
 
 func (v *Vec[T]) Remove(i int) (e T, ok bool) {
@@ -114,26 +102,6 @@ func (v *Vec[T]) Clear() {
 	v.Resize(0)
 }
 
-func (v *Vec[T]) FindFirst(val T) (index int, contain bool) {
-	v.Range(func(i int, v T) bool {
-		if v == val {
-			index, contain = i, true
-			return false
-		}
-		return true
-	})
-	return
-}
-
-func (v *Vec[T]) FindLast(val T) (i int, ok bool) {
-	for i = v.Len() - 1; i >= 0; i-- {
-		if v.data[i] == val {
-			return i, true
-		}
-	}
-	return
-}
-
 func (v *Vec[T]) FindAll(val T) (indexes []int) {
 	v.Range(func(i int, v T) bool {
 		if v == val {
@@ -150,11 +118,6 @@ func (v *Vec[T]) Find(cbk func(v T) (matched bool)) (ret []int) {
 			ret = append(ret, i)
 		}
 	}
-	return
-}
-
-func (v *Vec[T]) Contain(val T) (contain bool) {
-	_, contain = v.FindFirst(val)
 	return
 }
 
@@ -180,7 +143,7 @@ func (v *Vec[T]) Range(cbk func(i int, val T) (Continue bool)) {
 	}
 }
 
-// Interval returns a interval slice.
+// Interval returns a interval vec.
 func (v *Vec[T]) Interval(start, end int) (e []T, ok bool) {
 	if start < 0 || end > v.Len() || start > end {
 		return
@@ -197,7 +160,7 @@ func (v *Vec[T]) Slice() []T {
 //
 // If size > len, realloc, increase cap, but not change len.
 //
-// If size < len, truncate and if len < cap/4, shrink.
+// If size < len, truncate and if len < cap/8, shrink.
 func (v *Vec[T]) Resize(size int) {
 	if size < 0 {
 		return
@@ -209,15 +172,10 @@ func (v *Vec[T]) Resize(size int) {
 	l := v.Len()
 	c := v.Cap()
 	if size < l {
-		// truncate
-		if size < c/4 {
+		v.data = v.data[:size]
+		if size < c/8 {
 			// shrink
-			new := make([]T, size, c/4)
-			copy(new, v.data)
-			v.data = new
-		} else {
-			// not shrink
-			v.data = v.data[:size]
+			v.Clip()
 		}
 	} else if size > c {
 		// realloc
@@ -261,4 +219,111 @@ func (v *Vec[T]) ConpareAndRemove(i int, val T) (e T, ok bool) {
 
 func (v *Vec[T]) Less(i, j int) bool {
 	return v.data[i] < v.data[j]
+}
+
+func (v *Vec[T]) Grow(n int) {
+	v.data = slices.Grow(v.data, n)
+}
+
+// BinarySearch searches for target in a sorted slice and returns the position where target is found,
+// or the position where target would appear in the sort order;
+//
+// it also returns a bool saying whether the target is really found in the slice.
+//
+// The slice must be sorted in increasing order.
+func (v *Vec[T]) BinarySearch(target T) (int, bool) {
+	return slices.BinarySearch(v.data, target)
+}
+
+func (v *Vec[T]) BinarySearchFunc(target any, cmp func(T, any) int) (int, bool) {
+	return slices.BinarySearchFunc(v.data, target, cmp)
+}
+
+// Clip removes unused capacity
+func (v *Vec[T]) Clip() {
+	v.data = slices.Clip(v.data)
+}
+
+func (v *Vec[T]) Clone() *Vec[T] {
+	return New[T](WithValues(slices.Clone(v.data)...))
+}
+
+func (v *Vec[T]) Compact() {
+	v.data = slices.Compact(v.data)
+}
+
+func (v *Vec[T]) CompactFunc(f func(T, T) bool) {
+	v.data = slices.CompactFunc(v.data, f)
+}
+
+func (v *Vec[T]) Compare(other *Vec[T]) int {
+	return slices.Compare(v.data, other.data)
+}
+
+func (v *Vec[T]) CompareFunc(other *Vec[T], cmp func(T, T) int) int {
+	return slices.CompareFunc(v.data, other.data, cmp)
+}
+
+func (v *Vec[T]) Index(val T) int {
+	return slices.Index(v.data, val)
+}
+
+func (v *Vec[T]) Contains(val T) bool {
+	return v.Index(val) >= 0
+}
+
+func (v *Vec[T]) Delete(i, j int) {
+	v.data = slices.Delete(v.data, i, j)
+}
+
+func (v *Vec[T]) Equal(other *Vec[T]) bool {
+	return slices.Equal(v.data, other.data)
+}
+
+// Insert into constraints.Ordered position.
+//
+// if i < 0 or i out of range, panic.
+func (v *Vec[T]) Insert(i int, val ...T) {
+	v.data = slices.Insert(v.data, i, val...)
+}
+
+func (v *Vec[T]) IsSorted() bool {
+	return slices.IsSorted(v.data)
+}
+
+func (v *Vec[T]) Max() T {
+	return slices.Max(v.data)
+}
+
+func (v *Vec[T]) Min() T {
+	return slices.Min(v.data)
+}
+
+func (v *Vec[T]) Replace(i int, j int, val ...T) {
+	v.data = slices.Replace(v.data, i, j, val...)
+}
+
+// Reverse reverses the elements of the vec in place.
+func (v *Vec[T]) Reverse() {
+	slices.Reverse(v.data)
+}
+
+// Sort sorts a vec of any ordered type in ascending order.
+//
+// When sorting floating-point numbers, NaNs are ordered before other values.
+func (v *Vec[T]) Sort() {
+	slices.Sort(v.data)
+}
+
+// SortFunc sorts the vec x in ascending order as determined by the cmp function. This sort is not guaranteed to be stable. cmp(a, b) should return a negative number when a < b, a positive number when a > b and zero when a == b.
+//
+// SortFunc requires that cmp is a strict weak ordering. See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
+func (v *Vec[T]) SortFunc(cmp func(a T, b T) int) {
+	slices.SortFunc(v.data, cmp)
+}
+
+// SortStableFunc sorts the vec x while keeping the original order of equal elements,
+// using cmp to compare elements in the same way as SortFunc.
+func (v *Vec[T]) SortStableFunc(cmp func(a T, b T) int) {
+	slices.SortStableFunc(v.data, cmp)
 }

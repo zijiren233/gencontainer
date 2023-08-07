@@ -1,19 +1,17 @@
 // hash set
 package set
 
-import (
-	"github.com/zijiren233/gencontainer/restrictions"
-)
+import "golang.org/x/exp/constraints"
 
-type Set[T restrictions.Ordered] struct {
+type Set[T constraints.Ordered] struct {
 	m map[T]struct{}
 }
 
-type SetConf[T restrictions.Ordered] func(*Set[T])
+type SetConf[T constraints.Ordered] func(*Set[T])
 
 // WithCap sets the capacity of the set.
 // Need to be called before WithValues.
-func WithCap[T restrictions.Ordered](cap int) SetConf[T] {
+func WithCap[T constraints.Ordered](cap int) SetConf[T] {
 	return func(s *Set[T]) {
 		if s.m == nil {
 			s.m = make(map[T]struct{}, cap)
@@ -23,7 +21,7 @@ func WithCap[T restrictions.Ordered](cap int) SetConf[T] {
 
 // WithValues sets the values of the set.
 // Need to be called after WithCap.
-func WithValues[T restrictions.Ordered](val ...T) SetConf[T] {
+func WithValues[T constraints.Ordered](val ...T) SetConf[T] {
 	return func(s *Set[T]) {
 		if s.m == nil {
 			s.m = make(map[T]struct{}, len(val))
@@ -35,7 +33,7 @@ func WithValues[T restrictions.Ordered](val ...T) SetConf[T] {
 }
 
 // Set is a container that stores unique values.
-func New[T restrictions.Ordered](conf ...SetConf[T]) *Set[T] {
+func New[T constraints.Ordered](conf ...SetConf[T]) *Set[T] {
 	set := &Set[T]{}
 	for _, c := range conf {
 		c(set)

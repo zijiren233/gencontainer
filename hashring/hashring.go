@@ -6,30 +6,30 @@ import (
 	"sort"
 
 	"github.com/zijiren233/gencontainer/dllist"
-	"github.com/zijiren233/gencontainer/restrictions"
 	"github.com/zijiren233/gencontainer/vec"
+	"golang.org/x/exp/constraints"
 )
 
-type HashRing[Node restrictions.Ordered] struct {
+type HashRing[Node constraints.Ordered] struct {
 	replicas    int
 	rawNoods    *vec.Vec[Node]
 	sortedNodes *dllist.Dllist[node[Node]]
 }
 
-type node[Node restrictions.Ordered] struct {
+type node[Node constraints.Ordered] struct {
 	Node Node
 	hash uint32
 }
 
-type HashRingConf[Node restrictions.Ordered] func(*HashRing[Node])
+type HashRingConf[Node constraints.Ordered] func(*HashRing[Node])
 
-func WithNodes[Node restrictions.Ordered](nodes ...Node) HashRingConf[Node] {
+func WithNodes[Node constraints.Ordered](nodes ...Node) HashRingConf[Node] {
 	return func(hr *HashRing[Node]) {
 		hr.AddNodes(nodes...)
 	}
 }
 
-func New[Node restrictions.Ordered](replicas int, conf ...HashRingConf[Node]) *HashRing[Node] {
+func New[Node constraints.Ordered](replicas int, conf ...HashRingConf[Node]) *HashRing[Node] {
 	hr := &HashRing[Node]{
 		replicas: replicas,
 		rawNoods: vec.New[Node](),

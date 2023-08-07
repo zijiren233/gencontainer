@@ -3,7 +3,7 @@ package vec
 import (
 	"testing"
 
-	"github.com/zijiren233/gencontainer/utils"
+	"golang.org/x/exp/slices"
 )
 
 func TestVec(t *testing.T) {
@@ -14,14 +14,14 @@ func TestVec(t *testing.T) {
 	if v.Cap() != 10 {
 		t.Fatal("wrong capacity")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2, 3, 4, 5, 6}) {
+	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5, 6}) {
 		t.Fatal("wrong values")
 	}
 	v.Push(7, 8)
 	if v.Len() != 8 {
 		t.Fatal("wrong length")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2, 3, 4, 5, 6, 7, 8}) {
+	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5, 6, 7, 8}) {
 		t.Fatal("wrong values")
 	}
 }
@@ -34,7 +34,7 @@ func TestPop(t *testing.T) {
 	if v.Len() != 5 {
 		t.Fatal("wrong length")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2, 3, 4, 5}) {
+	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5}) {
 		t.Fatal("wrong values")
 	}
 }
@@ -48,7 +48,7 @@ func TestResize(t *testing.T) {
 	if v.Cap() != 10 {
 		t.Fatal("wrong capacity")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2}) {
+	if !slices.Equal(v.Slice(), []int{1, 2}) {
 		t.Fatal("wrong values")
 	}
 	v.Resize(20)
@@ -58,7 +58,7 @@ func TestResize(t *testing.T) {
 	if v.Cap() != 20 {
 		t.Fatal("wrong capacity")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2}) {
+	if !slices.Equal(v.Slice(), []int{1, 2}) {
 		t.Fatal("wrong values")
 	}
 }
@@ -72,17 +72,17 @@ func TestInsert(t *testing.T) {
 	if v.Cap() != 10 {
 		t.Fatal("wrong capacity")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 10, 11, 12, 2, 3, 4, 5, 6}) {
+	if !slices.Equal(v.Slice(), []int{1, 10, 11, 12, 2, 3, 4, 5, 6}) {
 		t.Fatal("wrong values")
 	}
 }
 
 func TestContain(t *testing.T) {
 	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
-	if !v.Contain(1) {
+	if !v.Contains(1) {
 		t.Fatal("wrong contain")
 	}
-	if v.Contain(10) {
+	if v.Contains(10) {
 		t.Fatal("wrong contain")
 	}
 }
@@ -90,9 +90,10 @@ func TestContain(t *testing.T) {
 func TestSwap(t *testing.T) {
 	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
 	v.Swap(0, 5)
-	if !utils.EqualSlice(v.Slice(), []int{6, 2, 3, 4, 5, 1}) {
+	if !slices.Equal(v.Slice(), []int{6, 2, 3, 4, 5, 1}) {
 		t.Fatal("wrong values")
 	}
+
 }
 
 func TestSplitOff(t *testing.T) {
@@ -101,10 +102,10 @@ func TestSplitOff(t *testing.T) {
 	if !ok {
 		t.Fatal("wrong split off")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 2}) {
+	if !slices.Equal(v.Slice(), []int{1, 2}) {
 		t.Fatal("wrong values")
 	}
-	if !utils.EqualSlice(v2.Slice(), []int{3, 4, 5, 6}) {
+	if !slices.Equal(v2.Slice(), []int{3, 4, 5, 6}) {
 		t.Fatal("wrong values")
 	}
 }
@@ -115,7 +116,7 @@ func TestClear(t *testing.T) {
 	if v.Len() != 0 {
 		t.Fatal("wrong length")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{}) {
+	if !slices.Equal(v.Slice(), []int{}) {
 		t.Fatal("wrong values")
 	}
 }
@@ -137,7 +138,7 @@ func TestRemove(t *testing.T) {
 	if e, ok := v.Remove(1); !ok || e != 10 {
 		t.Fatal("wrong remove")
 	}
-	if !utils.EqualSlice(v.Slice(), []int{1, 11, 12, 2, 3, 4, 5, 6}) {
+	if !slices.Equal(v.Slice(), []int{1, 11, 12, 2, 3, 4, 5, 6}) {
 		t.Fatal("wrong values")
 	}
 }
