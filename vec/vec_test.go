@@ -7,12 +7,9 @@ import (
 )
 
 func TestVec(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	if v.Len() != 6 {
 		t.Fatal("wrong length")
-	}
-	if v.Cap() != 10 {
-		t.Fatal("wrong capacity")
 	}
 	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5, 6}) {
 		t.Fatal("wrong values")
@@ -27,7 +24,7 @@ func TestVec(t *testing.T) {
 }
 
 func TestPop(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	if e, ok := v.Pop(); !ok || e != 6 {
 		t.Fatal("wrong pop")
 	}
@@ -39,38 +36,11 @@ func TestPop(t *testing.T) {
 	}
 }
 
-func TestResize(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
-	v.Resize(2)
-	if v.Len() != 2 {
-		t.Fatal("wrong length")
-	}
-	if v.Cap() != 10 {
-		t.Fatal("wrong capacity")
-	}
-	if !slices.Equal(v.Slice(), []int{1, 2}) {
-		t.Fatal("wrong values")
-	}
-	v.Resize(20)
-	if v.Len() != 2 {
-		t.Fatal("wrong length")
-	}
-	if v.Cap() != 20 {
-		t.Fatal("wrong capacity")
-	}
-	if !slices.Equal(v.Slice(), []int{1, 2}) {
-		t.Fatal("wrong values")
-	}
-}
-
 func TestInsert(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	v.Insert(1, 10, 11, 12)
 	if v.Len() != 9 {
 		t.Fatal("wrong length")
-	}
-	if v.Cap() != 10 {
-		t.Fatal("wrong capacity")
 	}
 	if !slices.Equal(v.Slice(), []int{1, 10, 11, 12, 2, 3, 4, 5, 6}) {
 		t.Fatal("wrong values")
@@ -78,7 +48,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestContain(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	if !v.Contains(1) {
 		t.Fatal("wrong contain")
 	}
@@ -88,7 +58,7 @@ func TestContain(t *testing.T) {
 }
 
 func TestSwap(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	v.Swap(0, 5)
 	if !slices.Equal(v.Slice(), []int{6, 2, 3, 4, 5, 1}) {
 		t.Fatal("wrong values")
@@ -97,11 +67,8 @@ func TestSwap(t *testing.T) {
 }
 
 func TestSplitOff(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
-	v2, ok := v.SplitOff(2)
-	if !ok {
-		t.Fatal("wrong split off")
-	}
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	v2 := v.SplitOff(2)
 	if !slices.Equal(v.Slice(), []int{1, 2}) {
 		t.Fatal("wrong values")
 	}
@@ -111,7 +78,7 @@ func TestSplitOff(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	v.Clear()
 	if v.Len() != 0 {
 		t.Fatal("wrong length")
@@ -122,7 +89,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestGetSet(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	if e, ok := v.Get(0); !ok || e != 1 {
 		t.Fatal("wrong get")
 	}
@@ -133,7 +100,7 @@ func TestGetSet(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	v := New[int](WithValues(1, 2, 3), WithValues(4, 5, 6), WithCap[int](10))
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
 	v.Insert(1, 10, 11, 12)
 	if e, ok := v.Remove(1); !ok || e != 10 {
 		t.Fatal("wrong remove")
