@@ -31,11 +31,9 @@ func WithNodes[Node constraints.Ordered](nodes ...Node) HashRingConf[Node] {
 
 func New[Node constraints.Ordered](replicas int, conf ...HashRingConf[Node]) *HashRing[Node] {
 	hr := &HashRing[Node]{
-		replicas: replicas,
-		rawNoods: vec.New[Node](),
-		sortedNodes: dllist.New[node[Node]](func(a, b node[Node]) bool {
-			return a.hash < b.hash
-		}),
+		replicas:    replicas,
+		rawNoods:    vec.New[Node](),
+		sortedNodes: dllist.New[node[Node]](),
 	}
 	for _, c := range conf {
 		c(hr)
@@ -57,7 +55,9 @@ func (hr *HashRing[Node]) AddNodes(nodes ...Node) {
 			})
 		}
 	}
-	hr.sortedNodes.Sort()
+	hr.sortedNodes.Sort(func(t1, t2 node[Node]) bool {
+		return t1.hash < t2.hash
+	})
 }
 
 func (hr *HashRing[Node]) ResetNodes(nodes ...Node) {

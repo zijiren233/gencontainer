@@ -1,70 +1,40 @@
 // doubly linked list
 package dllist
 
-import (
-	"reflect"
-)
-
 // Dllist represents a doubly linked list.
 type Dllist[Item any] struct {
-	root    Element[Item]
-	len     int
-	cmpLess func(Item, Item) bool
+	root Element[Item]
+	len  int
+
+	inited bool
 }
 
 type DllistConf[Item any] func(*Dllist[Item])
 
-func New[T any](cmpLess func(T, T) bool, conf ...DllistConf[T]) *Dllist[T] {
-	l := (&Dllist[T]{
-		cmpLess: cmpLess,
-	}).Clear()
-	for _, c := range conf {
-		c(l)
-	}
-	if l.cmpLess == nil {
-		l.setDefaultLessFunc()
-	}
-	return l
-}
-
-func (l *Dllist[T]) setDefaultLessFunc() (val T) {
-	v := reflect.Indirect(reflect.ValueOf(val))
-	switch v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		l.cmpLess = func(a, b T) bool {
-			return reflect.ValueOf(a).Int() < reflect.ValueOf(b).Int()
-		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		l.cmpLess = func(a, b T) bool {
-			return reflect.ValueOf(a).Uint() < reflect.ValueOf(b).Uint()
-		}
-	case reflect.Float32, reflect.Float64:
-		l.cmpLess = func(a, b T) bool {
-			return reflect.ValueOf(a).Float() < reflect.ValueOf(b).Float()
-		}
-	case reflect.String:
-		l.cmpLess = func(a, b T) bool {
-			return reflect.ValueOf(a).String() < reflect.ValueOf(b).String()
-		}
-	default:
-		l.cmpLess = func(a, b T) bool {
-			panic("dllist: less function is nil, pluse use WithLessFunc to set it")
-		}
-	}
-	return
+func New[T any]() *Dllist[T] {
+	return (&Dllist[T]{}).Clear()
 }
 
 func (l *Dllist[T]) Clear() *Dllist[T] {
 	l.root.next = &l.root
 	l.root.prev = &l.root
 	l.len = 0
+	l.inited = true
 	return l
+}
+
+// only call on before use root element
+func (l *Dllist[T]) lazyInit() {
+	if !l.inited {
+		l.Clear()
+	}
 }
 
 func (l *Dllist[T]) Get(i int) *Element[T] {
 	if i < 0 || i >= l.len {
 		return nil
 	}
+	l.lazyInit()
 
 	var e *Element[T]
 
@@ -89,6 +59,7 @@ func (l *Dllist[T]) Front() *Element[T] {
 	if l.len == 0 {
 		return nil
 	}
+	l.lazyInit()
 	return l.root.next
 }
 
@@ -96,6 +67,7 @@ func (l *Dllist[T]) Back() *Element[T] {
 	if l.len == 0 {
 		return nil
 	}
+	l.lazyInit()
 	return l.root.prev
 }
 
@@ -143,10 +115,12 @@ func (l *Dllist[T]) Remove(e *Element[T]) T {
 }
 
 func (l *Dllist[T]) PushFront(v T) *Element[T] {
+	l.lazyInit()
 	return l.insertValue(v, &l.root)
 }
 
 func (l *Dllist[T]) PushBack(v T) *Element[T] {
+	l.lazyInit()
 	return l.insertValue(v, l.root.prev)
 }
 
@@ -170,7 +144,7 @@ func (l *Dllist[T]) MoveToFront(e *Element[T]) {
 	if e.list != l || l.root.next == e {
 		return
 	}
-
+	l.lazyInit()
 	l.move(e, &l.root)
 }
 
@@ -178,7 +152,7 @@ func (l *Dllist[T]) MoveToBack(e *Element[T]) {
 	if e.list != l || l.root.prev == e {
 		return
 	}
-
+	l.lazyInit()
 	l.move(e, l.root.prev)
 }
 
@@ -197,14 +171,34 @@ func (l *Dllist[T]) MoveAfter(e, mark *Element[T]) {
 }
 
 func (l *Dllist[T]) PushBackList(other *Dllist[T]) {
+	l.lazyInit()
 	for i, e := other.len, other.Front(); i > 0; i, e = i-1, e.Next() {
 		l.insertValue(e.Value, l.root.prev)
 	}
 }
 
+func (l *Dllist[T]) PushBackListTo(other *Dllist[T], mark *Element[T]) {
+	if mark.list != l {
+		return
+	}
+	for i, e := other.len, other.Front(); i > 0; i, e = i-1, e.Next() {
+		l.insertValue(e.Value, mark)
+	}
+}
+
 func (l *Dllist[T]) PushFrontList(other *Dllist[T]) {
+	l.lazyInit()
 	for i, e := other.len, other.Back(); i > 0; i, e = i-1, e.Prev() {
 		l.insertValue(e.Value, &l.root)
+	}
+}
+
+func (l *Dllist[T]) PushFrontListTo(other *Dllist[T], mark *Element[T]) {
+	if mark.list != l {
+		return
+	}
+	for i, e := other.len, other.Back(); i > 0; i, e = i-1, e.Prev() {
+		l.insertValue(e.Value, mark)
 	}
 }
 
@@ -248,6 +242,15 @@ func (l *Dllist[T]) Range(f func(e *Element[T]) (Continue bool)) (RangeAll bool)
 	return true
 }
 
+func (l *Dllist[T]) RangeFrom(start *Element[T], f func(e *Element[T]) (Continue bool)) (RangeAll bool) {
+	for e := start; e != nil; e = e.Next() {
+		if !f(e) {
+			return
+		}
+	}
+	return true
+}
+
 // DeepClone returns a new Dllist with a copy of l's elements.
 func (l *Dllist[T]) Slice() []T {
 	s := make([]T, 0, l.len)
@@ -258,35 +261,39 @@ func (l *Dllist[T]) Slice() []T {
 	return s
 }
 
-func (l *Dllist[T]) Sort() {
+// stack overflow
+func (l *Dllist[T]) Sort(cmpLess func(T, T) bool) {
 	if l.len <= 1 {
 		return
 	}
 
 	pivot := l.Front().Value
-	smaller := New[T](l.cmpLess)
-	larger := New[T](l.cmpLess)
+	smaller := New[T]()
+	larger := New[T]()
 
-	for e := l.Front().Next(); e != nil; e = e.Next() {
-		if l.cmpLess(e.Value, pivot) {
+	l.RangeFrom(l.Front().Next(), func(e *Element[T]) bool {
+		if cmpLess(e.Value, pivot) {
 			smaller.PushBack(e.Value)
 		} else {
 			larger.PushBack(e.Value)
 		}
-	}
+		return true
+	})
 
-	smaller.Sort()
-	larger.Sort()
+	smaller.Sort(cmpLess)
+	larger.Sort(cmpLess)
 
 	l.Clear()
 
-	for e := smaller.Front(); e != nil; e = e.Next() {
+	smaller.Range(func(e *Element[T]) (Continue bool) {
 		l.PushBack(e.Value)
-	}
+		return true
+	})
 
 	l.PushBack(pivot)
 
-	for e := larger.Front(); e != nil; e = e.Next() {
+	larger.Range(func(e *Element[T]) (Continue bool) {
 		l.PushBack(e.Value)
-	}
+		return true
+	})
 }

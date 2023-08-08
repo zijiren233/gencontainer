@@ -62,18 +62,19 @@ func checkList(t *testing.T, l *Dllist[int], es []any) {
 	}
 
 	i := 0
-	for e := l.Front(); e != nil; e = e.Next() {
+	l.Range(func(e *Element[int]) (Continue bool) {
 		le := e.Value
 		if le != es[i] {
 			t.Errorf("elt[%d].Value = %v, want %v", i, le, es[i])
 		}
 		i++
-	}
+		return true
+	})
 }
 
 func TestExtending(t *testing.T) {
-	l1 := New[int](nil)
-	l2 := New[int](nil)
+	l1 := &Dllist[int]{}
+	l2 := &Dllist[int]{}
 
 	l1.PushBack(1)
 	l1.PushBack(2)
@@ -82,13 +83,13 @@ func TestExtending(t *testing.T) {
 	l2.PushBack(4)
 	l2.PushBack(5)
 
-	l3 := New[int](nil)
+	l3 := &Dllist[int]{}
 	l3.PushBackList(l1)
 	checkList(t, l3, []any{1, 2, 3})
 	l3.PushBackList(l2)
 	checkList(t, l3, []any{1, 2, 3, 4, 5})
 
-	l3 = New[int](nil)
+	l3 = &Dllist[int]{}
 	l3.PushFrontList(l2)
 	checkList(t, l3, []any{4, 5})
 	l3.PushFrontList(l1)
@@ -97,19 +98,19 @@ func TestExtending(t *testing.T) {
 	checkList(t, l1, []any{1, 2, 3})
 	checkList(t, l2, []any{4, 5})
 
-	l3 = New[int](nil)
+	l3 = &Dllist[int]{}
 	l3.PushBackList(l1)
 	checkList(t, l3, []any{1, 2, 3})
 	l3.PushBackList(l3)
 	checkList(t, l3, []any{1, 2, 3, 1, 2, 3})
 
-	l3 = New[int](nil)
+	l3 = &Dllist[int]{}
 	l3.PushFrontList(l1)
 	checkList(t, l3, []any{1, 2, 3})
 	l3.PushFrontList(l3)
 	checkList(t, l3, []any{1, 2, 3, 1, 2, 3})
 
-	l3 = New[int](nil)
+	l3 = &Dllist[int]{}
 	l1.PushBackList(l3)
 	checkList(t, l1, []any{1, 2, 3})
 	l1.PushFrontList(l3)
@@ -117,7 +118,7 @@ func TestExtending(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	l := New[int](nil)
+	l := &Dllist[int]{}
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
 	checkListPointers(t, l, []*Element[int]{e1, e2})
@@ -129,11 +130,11 @@ func TestRemove(t *testing.T) {
 }
 
 func TestIssue4103(t *testing.T) {
-	l1 := New[int](nil)
+	l1 := &Dllist[int]{}
 	l1.PushBack(1)
 	l1.PushBack(2)
 
-	l2 := New[int](nil)
+	l2 := New[int]()
 	l2.PushBack(3)
 	l2.PushBack(4)
 
@@ -150,7 +151,7 @@ func TestIssue4103(t *testing.T) {
 }
 
 func TestIssue6349(t *testing.T) {
-	l := New[int](nil)
+	l := &Dllist[int]{}
 	l.PushBack(1)
 	l.PushBack(2)
 
@@ -168,7 +169,7 @@ func TestIssue6349(t *testing.T) {
 }
 
 func TestMove(t *testing.T) {
-	l := New[int](nil)
+	l := &Dllist[int]{}
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
 	e3 := l.PushBack(3)
@@ -201,7 +202,7 @@ func TestMove(t *testing.T) {
 }
 
 func TestSwapElement(t *testing.T) {
-	l := New[int](nil)
+	l := &Dllist[int]{}
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
 	e3 := l.PushBack(3)
@@ -216,10 +217,19 @@ func TestSwapElement(t *testing.T) {
 }
 
 func TestPushAfter(t *testing.T) {
-	l := New[int](nil)
+	l := &Dllist[int]{}
 	l.PushBack(1)
 	e := l.PushBack(2)
 	l.PushBack(3)
 	e.InsertAfter(4)
 	checkList(t, l, []any{1, 2, 4, 3})
+}
+
+func TestSort(t *testing.T) {
+	l := &Dllist[int]{}
+	l.PushBack(3)
+	l.PushBack(1)
+	l.PushBack(2)
+	l.Sort(func(a, b int) bool { return a < b })
+	checkList(t, l, []any{1, 2, 3})
 }
