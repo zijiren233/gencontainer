@@ -92,7 +92,7 @@ func (hr *HashRing[Node]) RemoveNodes(nodes ...Node) {
 	}
 	keys := make(map[uint32]struct{})
 	for _, n := range nodes {
-		for _, v := range hr.rawNoods.FindAll(n) {
+		for _, v := range hr.rawNoods.SearchAll(n) {
 			for i := 0; i < hr.replicas; i++ {
 				keys[hr.hashKey(n, i)] = struct{}{}
 			}

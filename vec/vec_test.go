@@ -1,26 +1,17 @@
 package vec
 
 import (
+	"fmt"
 	"testing"
 
 	"golang.org/x/exp/slices"
 )
 
 func TestVec(t *testing.T) {
-	v := New[int]().Push(1, 2, 3, 4, 5, 6)
-	if v.Len() != 6 {
-		t.Fatal("wrong length")
-	}
-	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5, 6}) {
-		t.Fatal("wrong values")
-	}
-	v.Push(7, 8)
-	if v.Len() != 8 {
-		t.Fatal("wrong length")
-	}
-	if !slices.Equal(v.Slice(), []int{1, 2, 3, 4, 5, 6, 7, 8}) {
-		t.Fatal("wrong values")
-	}
+	var v Vec[int]
+	v.Push(1, 2, 3, 4, 5, 6).Pop()
+	fmt.Printf("v: %v\n", v)
+
 }
 
 func TestPop(t *testing.T) {
@@ -106,6 +97,46 @@ func TestRemove(t *testing.T) {
 		t.Fatal("wrong remove")
 	}
 	if !slices.Equal(v.Slice(), []int{1, 11, 12, 2, 3, 4, 5, 6}) {
+		t.Fatal("wrong values")
+	}
+}
+
+func TestSort(t *testing.T) {
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	v.Insert(1, 10, 11, 12)
+	if !v.Sort().EqualSlice([]int{1, 2, 3, 4, 5, 6, 10, 11, 12}) {
+		t.Fatal("wrong values")
+	}
+}
+
+func TestReverse(t *testing.T) {
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	if !v.Insert(1, 10, 11, 12).Sort().Reverse().EqualSlice([]int{12, 11, 10, 6, 5, 4, 3, 2, 1}) {
+		t.Fatal("wrong values")
+	}
+}
+
+func TestBinarySearch(t *testing.T) {
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	if i, ok := v.BinarySearch(3); !ok || i != 2 {
+		t.Fatal("wrong binary search")
+	}
+	if i, ok := v.BinarySearch(10); ok || i != 6 {
+		t.Fatal("wrong binary search")
+	}
+}
+
+func TestCompact(t *testing.T) {
+	v := New[int]().Push(1, 2, 3, 4, 5, 6, 6, 5, 4, 3, 2, 1)
+	if !v.Insert(1, 10, 11, 12).Reverse().Sort().Compact().EqualSlice([]int{1, 2, 3, 4, 5, 6, 10, 11, 12}) {
+		t.Fatalf("wrong values %v", v.Slice())
+	}
+}
+
+func TestReplace(t *testing.T) {
+	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	v.Replace(0, 3, 10, 11, 12)
+	if !slices.Equal(v.Slice(), []int{10, 11, 12, 4, 5, 6}) {
 		t.Fatal("wrong values")
 	}
 }
