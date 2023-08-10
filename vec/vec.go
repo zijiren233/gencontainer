@@ -90,7 +90,7 @@ func (v *Vec[T]) autoDetectSetCmpEqual() *Vec[T] {
 			return reflect.ValueOf(a).String() == reflect.ValueOf(b).String()
 		}
 	default:
-		panic("warning: auto detect type failed, please set cmp equal manually or use WithCmpLess when create vec")
+		panic("warning: auto detect type failed, please set cmp equal manually or use WithCmpEqual when create vec")
 	}
 	return v
 }
