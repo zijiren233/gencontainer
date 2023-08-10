@@ -47,7 +47,7 @@ func (e *Element[T]) InsertBefore(v T) *Element[T] {
 
 // dont remove element when iterating, it will stop the iteration
 func (e *Element[T]) Range(f func(e *Element[T]) (Continue bool)) {
-	for e := e.Next(); e != nil; e = e.Next() {
+	for ; e != nil; e = e.Next() {
 		if !f(e) {
 			return
 		}

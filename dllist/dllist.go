@@ -242,15 +242,6 @@ func (l *Dllist[T]) Range(f func(e *Element[T]) (Continue bool)) (RangeAll bool)
 	return true
 }
 
-func (l *Dllist[T]) RangeFrom(start *Element[T], f func(e *Element[T]) (Continue bool)) (RangeAll bool) {
-	for e := start; e != nil; e = e.Next() {
-		if !f(e) {
-			return
-		}
-	}
-	return true
-}
-
 // DeepClone returns a new Dllist with a copy of l's elements.
 func (l *Dllist[T]) Slice() []T {
 	s := make([]T, 0, l.len)
@@ -261,7 +252,6 @@ func (l *Dllist[T]) Slice() []T {
 	return s
 }
 
-// stack overflow
 func (l *Dllist[T]) Sort(cmpLess func(T, T) bool) {
 	if l.len <= 1 {
 		return
@@ -271,7 +261,7 @@ func (l *Dllist[T]) Sort(cmpLess func(T, T) bool) {
 	smaller := New[T]()
 	larger := New[T]()
 
-	l.RangeFrom(l.Front().Next(), func(e *Element[T]) bool {
+	l.Front().Next().Range(func(e *Element[T]) bool {
 		if cmpLess(e.Value, pivot) {
 			smaller.PushBack(e.Value)
 		} else {
