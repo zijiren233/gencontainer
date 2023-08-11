@@ -5,12 +5,12 @@ import (
 )
 
 func TestGetNode(t *testing.T) {
-	hr := New[string](1024, WithNodes("node1", "node2", "node3", "node4"))
+	hr := New[string](1024).AddNodes("node1", "node2", "node3", "node4")
 	if hr.rawNoods.Len() != 4 {
 		t.Errorf("New error %d", hr.rawNoods.Len())
 	}
-	if hr.sortedNodes.Len() != 1024*4 {
-		t.Errorf("New error %d", hr.sortedNodes.Len())
+	if hr.noods.Len() != 1024*4 {
+		t.Errorf("New error %d", hr.noods.Len())
 	}
 	s := hr.GetNode("somehash to get node")
 	if s == "" {
@@ -19,13 +19,13 @@ func TestGetNode(t *testing.T) {
 }
 
 func TestAddNode(t *testing.T) {
-	hr := New[string](10, WithNodes("node1"))
+	hr := New[string](10).AddNodes("node1")
 	hr.AddNodes("node2")
-	if hr.sortedNodes.Len() != 20 {
+	if hr.noods.Len() != 20 {
 		t.Error("AddNodes error")
 	}
 	hr.RemoveNodes("node2")
-	if hr.sortedNodes.Len() != 10 {
+	if hr.noods.Len() != 10 {
 		t.Error("RemoveNodes error")
 	}
 }

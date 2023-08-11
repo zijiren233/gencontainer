@@ -1,7 +1,6 @@
 package vec
 
 import (
-	"fmt"
 	"testing"
 
 	"golang.org/x/exp/slices"
@@ -10,8 +9,7 @@ import (
 func TestVec(t *testing.T) {
 	var v Vec[int]
 	v.Push(1, 2, 3, 4, 5, 6).Pop()
-	fmt.Printf("v: %v\n", v)
-
+	v.EqualSlice([]int{1, 2, 3, 4, 5})
 }
 
 func TestPop(t *testing.T) {
@@ -117,11 +115,14 @@ func TestReverse(t *testing.T) {
 }
 
 func TestBinarySearch(t *testing.T) {
-	v := New[int]().Push(1, 2, 3, 4, 5, 6)
+	v := New[int]().Push(1, 2, 3, 4, 5, 6, 8, 11, 12, 15, 20)
 	if i, ok := v.BinarySearch(3); !ok || i != 2 {
 		t.Fatal("wrong binary search")
 	}
-	if i, ok := v.BinarySearch(10); ok || i != 6 {
+	if i, ok := v.BinarySearch(19); ok || i != 10 {
+		t.Fatal("wrong binary search")
+	}
+	if i, ok := v.BinarySearch(21); ok || i != 11 {
 		t.Fatal("wrong binary search")
 	}
 }

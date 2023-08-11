@@ -1,9 +1,11 @@
 package set
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNew(t *testing.T) {
-	s := New[int](WithCap[int](1024), WithValues(1, 2, 3, 4, 5, 4, 3, 2, 1))
+	s := New[int]().Push(1, 2, 3, 4, 5, 4, 3, 2, 1)
 	if s == nil {
 		t.Errorf("New[int]() = %p, want not nil", s)
 	}

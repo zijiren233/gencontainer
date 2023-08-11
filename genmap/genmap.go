@@ -40,7 +40,7 @@ func (m GenMap[K, V]) Clone() GenMap[K, V] {
 
 // shallow copy
 func (m GenMap[K, V]) Map() map[K]V {
-	return (m)
+	return m
 }
 
 func (m GenMap[K, V]) Keys() []K {

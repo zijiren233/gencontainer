@@ -213,7 +213,7 @@ func (v *Vec[T]) BinarySearch(target T) (int, bool) {
 	})
 }
 
-func (v *Vec[T]) BinarySearchFunc(target T, cmp func(currentVal T, target T) int) (int, bool) {
+func (v *Vec[T]) BinarySearchFunc(target T, cmp func(val T, target T) int) (int, bool) {
 	return slices.BinarySearchFunc(v.d, target, cmp)
 }
 

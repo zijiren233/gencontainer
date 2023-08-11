@@ -3,17 +3,16 @@ package hashring
 import (
 	"fmt"
 	"hash/crc32"
-	"sort"
 
-	"github.com/zijiren233/gencontainer/dllist"
+	"github.com/zijiren233/gencontainer/set"
 	"github.com/zijiren233/gencontainer/vec"
 	"golang.org/x/exp/constraints"
 )
 
 type HashRing[Node constraints.Ordered] struct {
-	replicas    int
-	rawNoods    *vec.Vec[Node]
-	sortedNodes *dllist.Dllist[node[Node]]
+	replicas int
+	rawNoods set.Set[Node]
+	noods    *vec.Vec[node[Node]]
 }
 
 type node[Node constraints.Ordered] struct {
@@ -21,65 +20,66 @@ type node[Node constraints.Ordered] struct {
 	hash uint32
 }
 
-type HashRingConf[Node constraints.Ordered] func(*HashRing[Node])
-
-func WithNodes[Node constraints.Ordered](nodes ...Node) HashRingConf[Node] {
-	return func(hr *HashRing[Node]) {
-		hr.AddNodes(nodes...)
-	}
-}
-
-func New[Node constraints.Ordered](replicas int, conf ...HashRingConf[Node]) *HashRing[Node] {
+func New[Node constraints.Ordered](replicas int) *HashRing[Node] {
 	hr := &HashRing[Node]{
-		replicas:    replicas,
-		rawNoods:    vec.New[Node](),
-		sortedNodes: dllist.New[node[Node]](),
-	}
-	for _, c := range conf {
-		c(hr)
+		replicas: replicas,
+		rawNoods: set.New[Node](),
+		noods: vec.New[node[Node]](
+			vec.WithCmpLess(func(t1, t2 node[Node]) bool {
+				return t1.hash < t2.hash
+			}),
+			vec.WithCmpEqual(func(t1, t2 node[Node]) bool {
+				return t1.hash == t2.hash
+			})),
 	}
 	return hr
 }
 
-func (hr *HashRing[Node]) AddNodes(nodes ...Node) {
+func (hr *HashRing[Node]) AddNodes(nodes ...Node) *HashRing[Node] {
 	if len(nodes) == 0 {
-		return
+		return hr
 	}
-	hr.rawNoods.Push(nodes...)
-	for _, n := range nodes {
-		for i := 0; i < hr.replicas; i++ {
-			key := hr.hashKey(n, i)
-			hr.sortedNodes.PushBack(node[Node]{
-				Node: n,
-				hash: key,
+	s := set.New[Node]().Push(nodes...).Difference(hr.rawNoods)
+	s.Range(func(val Node) (Continue bool) {
+		for v := 0; v < hr.replicas; v++ {
+			hr.noods.Push(node[Node]{
+				Node: val,
+				hash: hr.hashKey(val, v),
 			})
 		}
-	}
-	hr.sortedNodes.Sort(func(t1, t2 node[Node]) bool {
-		return t1.hash < t2.hash
+		return true
 	})
+	hr.rawNoods.Push(s.Slice()...)
+	hr.noods.Sort()
+	return hr
 }
 
 func (hr *HashRing[Node]) ResetNodes(nodes ...Node) {
-	hr.sortedNodes.Clear()
+	hr.noods.Clear()
 	hr.rawNoods.Clear()
 	hr.AddNodes(nodes...)
 }
 
 // GetNode returns the node that a given key maps to
 func (hr *HashRing[Node]) GetNode(key Node) (n Node) {
-	if hr.sortedNodes.Len() == 0 {
+	if hr.noods.Len() == 0 {
 		return
 	}
 	hash := hr.hashKey(key, 0)
-
-	index := sort.Search(hr.sortedNodes.Len(), func(i int) bool {
-		return hr.sortedNodes.Get(i).Value.hash >= hash
-	})
-	if index == hr.sortedNodes.Len() {
-		index = 0
+	if i, ok := hr.noods.BinarySearch(node[Node]{
+		hash: hash,
+		Node: key,
+	}); ok {
+		return key
+	} else {
+		if i == hr.noods.Len() {
+			n, _ := hr.noods.First()
+			return n.Node
+		} else {
+			n, _ := hr.noods.Get(i)
+			return n.Node
+		}
 	}
-	return hr.sortedNodes.Get(index).Value.Node
 }
 
 func (hr *HashRing[Node]) hashKey(key Node, index int) uint32 {
@@ -90,23 +90,6 @@ func (hr *HashRing[Node]) RemoveNodes(nodes ...Node) {
 	if len(nodes) == 0 {
 		return
 	}
-	keys := make(map[uint32]struct{})
-	for _, n := range nodes {
-		for _, v := range hr.rawNoods.SearchAll(n) {
-			for i := 0; i < hr.replicas; i++ {
-				keys[hr.hashKey(n, i)] = struct{}{}
-			}
-			hr.rawNoods.Remove(v)
-		}
-	}
-	removeds := make([]*dllist.Element[node[Node]], 0, len(keys))
-	hr.sortedNodes.Range(func(e *dllist.Element[node[Node]]) bool {
-		if _, ok := keys[e.Value.hash]; ok {
-			removeds = append(removeds, e)
-		}
-		return true
-	})
-	for _, e := range removeds {
-		e.Remove()
-	}
+	s := hr.rawNoods.Intersection(set.New[Node]().Push(nodes...))
+	hr.ResetNodes(hr.rawNoods.Difference(s).Slice()...)
 }
