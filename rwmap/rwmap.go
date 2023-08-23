@@ -199,22 +199,13 @@ func (e *entry[V]) swapLocked(i *V) *V {
 // Otherwise, it stores and returns the given value.
 // The loaded result is true if the value was loaded, false if stored.
 func (m *RWMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
-	return m.LoadOrStoreFunc(key, func() V { return value })
-}
-
-func (m *RWMap[K, V]) LoadOrStoreFunc(key K, fn func() V) (actual V, loaded bool) {
 	// Avoid locking if it's a clean hit.
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
-		if value, ok := e.load(); ok {
-			return value, true
-		}
-		actual = fn()
-		if actual, loaded, ok := e.tryLoadOrStore(actual); ok {
+		actual, loaded, ok := e.tryLoadOrStore(value)
+		if ok {
 			return actual, loaded
 		}
-	} else {
-		actual = fn()
 	}
 
 	m.mu.Lock()
@@ -223,9 +214,9 @@ func (m *RWMap[K, V]) LoadOrStoreFunc(key K, fn func() V) (actual V, loaded bool
 		if e.unexpungeLocked() {
 			m.dirty[key] = e
 		}
-		actual, loaded, _ = e.tryLoadOrStore(actual)
+		actual, loaded, _ = e.tryLoadOrStore(value)
 	} else if e, ok := m.dirty[key]; ok {
-		actual, loaded, _ = e.tryLoadOrStore(actual)
+		actual, loaded, _ = e.tryLoadOrStore(value)
 		m.missLocked()
 	} else {
 		if !read.amended {
@@ -234,15 +225,20 @@ func (m *RWMap[K, V]) LoadOrStoreFunc(key K, fn func() V) (actual V, loaded bool
 			m.dirtyLocked()
 			m.read.Store(&readOnly[K, V]{m: read.m, amended: true})
 		}
-		loaded = false
-		m.dirty[key] = newEntry(actual)
+		m.dirty[key] = newEntry(value)
+		actual, loaded = value, false
 	}
 	m.mu.Unlock()
 
 	return actual, loaded
 }
 
-func (e *entry[V]) tryLoadOrStore(val V) (actual V, loaded, ok bool) {
+// tryLoadOrStore atomically loads or stores a value if the entry is not
+// expunged.
+//
+// If the entry is expunged, tryLoadOrStore leaves the entry unchanged and
+// returns with ok==false.
+func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 	p := e.p.Load()
 	if unsafe.Pointer(p) == expunged {
 		return
@@ -254,10 +250,10 @@ func (e *entry[V]) tryLoadOrStore(val V) (actual V, loaded, ok bool) {
 	// Copy the interface after the first load to make this method more amenable
 	// to escape analysis: if we hit the "load" path or the entry is expunged, we
 	// shouldn't bother heap-allocating.
-	ic := val
+	ic := i
 	for {
 		if e.p.CompareAndSwap(nil, &ic) {
-			return ic, false, true
+			return i, false, true
 		}
 		p = e.p.Load()
 		if unsafe.Pointer(p) == expunged {

@@ -162,13 +162,3 @@ func TestLoadOrStore(t *testing.T) {
 		t.Fatalf("LoadOrStore on an existing key failed, got %v", v)
 	}
 }
-
-func TestLoadOrStoreFunc(t *testing.T) {
-	m := &rwmap.RWMap[any, any]{}
-	if v, ok := m.LoadOrStoreFunc(m, func() any { return 42 }); ok {
-		t.Fatalf("LoadOrStoreFunc on an non-existing key succeeded, got %v", v)
-	}
-	if v, ok := m.LoadOrStoreFunc(m, func() any { return 42 }); !ok || v != 42 {
-		t.Fatalf("LoadOrStoreFunc on an existing key failed, got %v", v)
-	}
-}
