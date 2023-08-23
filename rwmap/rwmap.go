@@ -478,6 +478,14 @@ func (m *RWMap[K, V]) Range(f func(key K, value V) bool) {
 	}
 }
 
+func (m *RWMap[K, V]) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.read.Store(&readOnly[K, V]{})
+	m.dirty = nil
+	m.misses = 0
+}
+
 func (m *RWMap[K, V]) missLocked() {
 	m.misses++
 	if m.misses < len(m.dirty) {

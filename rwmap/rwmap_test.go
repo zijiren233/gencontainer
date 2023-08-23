@@ -162,3 +162,16 @@ func TestLoadOrStore(t *testing.T) {
 		t.Fatalf("LoadOrStore on an existing key failed, got %v", v)
 	}
 }
+
+func TestClear(t *testing.T) {
+	m := &rwmap.RWMap[any, any]{}
+	m.Store(m, 42)
+	m.Clear()
+	if v, ok := m.Load(m); ok {
+		t.Fatalf("Clear failed, got %v", v)
+	}
+	m.Store(m, 42)
+	if v, ok := m.Load(m); !ok || v != 42 {
+		t.Fatalf("Clear failed, got %v", v)
+	}
+}
