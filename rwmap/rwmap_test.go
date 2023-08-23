@@ -175,3 +175,18 @@ func TestClear(t *testing.T) {
 		t.Fatalf("Clear failed, got %v", v)
 	}
 }
+
+func TestLen(t *testing.T) {
+	m := &rwmap.RWMap[any, any]{}
+	if m.Len() != 0 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.Store(m, 42)
+	if m.Len() != 1 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.Delete(m)
+	if m.Len() != 0 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+}

@@ -486,6 +486,14 @@ func (m *RWMap[K, V]) Clear() {
 	m.misses = 0
 }
 
+func (m *RWMap[K, V]) Len() (n int) {
+	m.Range(func(K, V) bool {
+		n++
+		return true
+	})
+	return n
+}
+
 func (m *RWMap[K, V]) missLocked() {
 	m.misses++
 	if m.misses < len(m.dirty) {
