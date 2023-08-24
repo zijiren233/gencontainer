@@ -500,7 +500,15 @@ func (m *RWMap[K, V]) Len() (n int) {
 		m.mu.Unlock()
 	}
 
-	return len(read.m)
+	for _, e := range read.m {
+		_, ok := e.load()
+		if !ok {
+			continue
+		}
+		n++
+	}
+
+	return n
 }
 
 func (m *RWMap[K, V]) missLocked() {
