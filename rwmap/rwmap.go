@@ -487,11 +487,20 @@ func (m *RWMap[K, V]) Clear() {
 }
 
 func (m *RWMap[K, V]) Len() (n int) {
-	m.Range(func(K, V) bool {
-		n++
-		return true
-	})
-	return n
+	read := m.loadReadOnly()
+	if read.amended {
+		m.mu.Lock()
+		read = m.loadReadOnly()
+		if read.amended {
+			read = readOnly[K, V]{m: m.dirty}
+			m.read.Store(&read)
+			m.dirty = nil
+			m.misses = 0
+		}
+		m.mu.Unlock()
+	}
+
+	return len(read.m)
 }
 
 func (m *RWMap[K, V]) missLocked() {

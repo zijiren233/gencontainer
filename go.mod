@@ -2,4 +2,4 @@ module github.com/zijiren233/gencontainer
 
 go 1.20
 
-require golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
+require golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
