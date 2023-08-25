@@ -142,7 +142,7 @@ func (m *RWMap[K, V]) Load(key K) (value V, ok bool) {
 
 func (e *entry[V]) load() (value V, ok bool) {
 	p := e.p.Load()
-	if p == nil || unsafe.Pointer(p) == expunged {
+	if p == nil || p == (*V)(expunged) {
 		return
 	}
 	return *p, true
@@ -161,7 +161,7 @@ func (m *RWMap[K, V]) Store(key K, value V) {
 // the entry unchanged.
 func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 	p := e.p.Load()
-	if p == nil || unsafe.Pointer(p) == expunged || p != &old {
+	if p == nil || p == (*V)(expunged) || p != &old {
 		return false
 	}
 
@@ -174,7 +174,7 @@ func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 			return true
 		}
 		p = e.p.Load()
-		if p == nil || unsafe.Pointer(p) == expunged || p != &old {
+		if p == nil || p == (*V)(expunged) || p != &old {
 			return false
 		}
 	}
@@ -240,7 +240,7 @@ func (m *RWMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 // returns with ok==false.
 func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 	p := e.p.Load()
-	if unsafe.Pointer(p) == expunged {
+	if p == (*V)(expunged) {
 		return
 	}
 	if p != nil {
@@ -256,7 +256,7 @@ func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 			return i, false, true
 		}
 		p = e.p.Load()
-		if unsafe.Pointer(p) == expunged {
+		if p == (*V)(expunged) {
 			return
 		}
 		if p != nil {
@@ -298,7 +298,7 @@ func (m *RWMap[K, V]) Delete(key K) {
 func (e *entry[V]) delete() (value V, ok bool) {
 	for {
 		p := e.p.Load()
-		if p == nil || unsafe.Pointer(p) == expunged {
+		if p == nil || p == (*V)(expunged) {
 			return
 		}
 		if e.p.CompareAndSwap(p, nil) {
@@ -314,7 +314,7 @@ func (e *entry[V]) delete() (value V, ok bool) {
 func (e *entry[V]) trySwap(i *V) (*V, bool) {
 	for {
 		p := e.p.Load()
-		if unsafe.Pointer(p) == expunged {
+		if p == (*V)(expunged) {
 			return nil, false
 		}
 		if e.p.CompareAndSwap(p, i) {
@@ -424,7 +424,7 @@ func (m *RWMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	for ok {
 		p := e.p.Load()
-		if p == nil || unsafe.Pointer(p) == expunged || p != &old {
+		if p == nil || p == (*V)(expunged) || p != &old {
 			return false
 		}
 		if e.p.CompareAndSwap(p, nil) {
@@ -543,5 +543,5 @@ func (e *entry[V]) tryExpungeLocked() (isExpunged bool) {
 		}
 		p = e.p.Load()
 	}
-	return unsafe.Pointer(p) == expunged
+	return p == (*V)(expunged)
 }
