@@ -1,6 +1,8 @@
 package heap
 
-import "sort"
+import (
+	"sort"
+)
 
 type Interface[T any] interface {
 	sort.Interface
