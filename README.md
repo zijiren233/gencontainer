@@ -83,3 +83,12 @@
 		t.Errorf("LoadAndDeleteAll() = %v, want 0", v)
 	}
   ```
+
+- `heap`
+  ```go
+  h := heap.MinHeap[int]
+  for i := 0; i < 10; i++ {
+		h.Push(i)
+	}
+  v := heap.Pop(h)
+  ```
