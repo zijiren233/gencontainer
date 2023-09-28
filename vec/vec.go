@@ -477,7 +477,7 @@ func (v *Vec[T]) SortFunc(cmpLess, cmpEqual func(T, T) bool) *Vec[T] {
 
 // SortStableFunc sorts the vec x while keeping the original order of equal elements,
 // using cmp to compare elements in the same way as SortFunc.
-func (v *Vec[T]) SortStable(cmp func(a T, b T) int) *Vec[T] {
+func (v *Vec[T]) SortStable() *Vec[T] {
 	return v.SortStableFunc(v.CmpLess, v.CmpEqual)
 }
 
