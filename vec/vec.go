@@ -3,6 +3,7 @@ package vec
 import (
 	"reflect"
 
+	"github.com/maruel/natural"
 	"golang.org/x/exp/slices"
 )
 
@@ -56,8 +57,9 @@ func (v *Vec[T]) autoDetectSetCmpLess() *Vec[T] {
 		}
 	case reflect.String:
 		v.cmpLess = func(a, b T) bool {
-			return reflect.ValueOf(a).String() < reflect.ValueOf(b).String()
+			return natural.Less(reflect.ValueOf(a).String(), reflect.ValueOf(b).String())
 		}
+
 	default:
 		panic("warning: auto detect type failed, please set cmp less manually or use WithCmpLess when create vec")
 	}
