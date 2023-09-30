@@ -164,7 +164,7 @@ func (m *RWMap[K, V]) Store(key K, value V) {
 // the entry unchanged.
 func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 	p := e.p.Load()
-	if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
+	if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 		return false
 	}
 
@@ -177,7 +177,7 @@ func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 			return true
 		}
 		p = e.p.Load()
-		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
+		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 			return false
 		}
 	}
@@ -447,7 +447,7 @@ func (m *RWMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	for ok {
 		p := e.p.Load()
-		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
+		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 			return false
 		}
 		if e.p.CompareAndSwap(p, nil) {
