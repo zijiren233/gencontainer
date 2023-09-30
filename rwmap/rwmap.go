@@ -1,6 +1,7 @@
 package rwmap
 
 import (
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -65,6 +66,8 @@ type RWMap[K comparable, V any] struct {
 	// map, the dirty map will be promoted to the read map (in the unamended
 	// state) and the next store to the map will make a new dirty copy.
 	misses int
+
+	len int64
 }
 
 var expunged = unsafe.Pointer(new(any))
@@ -150,7 +153,7 @@ func (e *entry[V]) load() (value V, ok bool) {
 
 // Store sets the value for a key.
 func (m *RWMap[K, V]) Store(key K, value V) {
-	_, _ = m.Swap(key, value)
+	m.Swap(key, value)
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
@@ -161,7 +164,7 @@ func (m *RWMap[K, V]) Store(key K, value V) {
 // the entry unchanged.
 func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 	p := e.p.Load()
-	if p == nil || p == (*V)(expunged) || p != &old {
+	if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
 		return false
 	}
 
@@ -174,7 +177,7 @@ func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 			return true
 		}
 		p = e.p.Load()
-		if p == nil || p == (*V)(expunged) || p != &old {
+		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
 			return false
 		}
 	}
@@ -199,6 +202,11 @@ func (e *entry[V]) swapLocked(i *V) *V {
 // Otherwise, it stores and returns the given value.
 // The loaded result is true if the value was loaded, false if stored.
 func (m *RWMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
+	defer func() {
+		if !loaded {
+			atomic.AddInt64(&m.len, 1)
+		}
+	}()
 	// Avoid locking if it's a clean hit.
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
@@ -268,6 +276,11 @@ func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 // LoadAndDelete deletes the value for a key, returning the previous value if any.
 // The loaded result reports whether the key was present.
 func (m *RWMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+	defer func() {
+		if loaded {
+			atomic.AddInt64(&m.len, -1)
+		}
+	}()
 	read := m.loadReadOnly()
 	e, ok := read.m[key]
 	if !ok && read.amended {
@@ -326,6 +339,11 @@ func (e *entry[V]) trySwap(i *V) (*V, bool) {
 // Swap swaps the value for a key and returns the previous value if any.
 // The loaded result reports whether the key was present.
 func (m *RWMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
+	defer func() {
+		if !loaded {
+			atomic.AddInt64(&m.len, 1)
+		}
+	}()
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
 		if v, ok := e.trySwap(&value); ok {
@@ -402,6 +420,11 @@ func (m *RWMap[K, V]) CompareAndSwap(key K, old, new V) bool {
 // If there is no current value for key in the map, CompareAndDelete
 // returns false (even if the old value is the nil interface value).
 func (m *RWMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	defer func() {
+		if deleted {
+			atomic.AddInt64(&m.len, -1)
+		}
+	}()
 	read := m.loadReadOnly()
 	e, ok := read.m[key]
 	if !ok && read.amended {
@@ -424,7 +447,7 @@ func (m *RWMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	for ok {
 		p := e.p.Load()
-		if p == nil || p == (*V)(expunged) || p != &old {
+		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(p).Elem().Equal(reflect.ValueOf(old)) {
 			return false
 		}
 		if e.p.CompareAndSwap(p, nil) {
@@ -481,34 +504,36 @@ func (m *RWMap[K, V]) Range(f func(key K, value V) bool) {
 func (m *RWMap[K, V]) Clear() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.read.Store(&readOnly[K, V]{})
 	m.dirty = nil
 	m.misses = 0
+	m.len = 0
+	m.read.Store(&readOnly[K, V]{})
 }
 
-func (m *RWMap[K, V]) Len() (n int) {
-	read := m.loadReadOnly()
-	if read.amended {
-		m.mu.Lock()
-		read = m.loadReadOnly()
-		if read.amended {
-			read = readOnly[K, V]{m: m.dirty}
-			m.read.Store(&read)
-			m.dirty = nil
-			m.misses = 0
-		}
-		m.mu.Unlock()
-	}
+func (m *RWMap[K, V]) Len() (n int64) {
+	// read := m.loadReadOnly()
+	// if read.amended {
+	// 	m.mu.Lock()
+	// 	read = m.loadReadOnly()
+	// 	if read.amended {
+	// 		read = readOnly[K, V]{m: m.dirty}
+	// 		m.read.Store(&read)
+	// 		m.dirty = nil
+	// 		m.misses = 0
+	// 	}
+	// 	m.mu.Unlock()
+	// }
 
-	for _, e := range read.m {
-		_, ok := e.load()
-		if !ok {
-			continue
-		}
-		n++
-	}
+	// for _, e := range read.m {
+	// 	_, ok := e.load()
+	// 	if !ok {
+	// 		continue
+	// 	}
+	// 	n++
+	// }
 
-	return n
+	// return n
+	return atomic.LoadInt64(&m.len)
 }
 
 func (m *RWMap[K, V]) missLocked() {

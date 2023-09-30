@@ -176,6 +176,20 @@ func TestClear(t *testing.T) {
 	}
 }
 
+func TestCompareAndSwap(t *testing.T) {
+	m := &rwmap.RWMap[any, any]{}
+	m.Store(m, 42)
+	if m.CompareAndSwap(m, nil, 42) {
+		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
+	}
+	if !m.CompareAndSwap(m, 42, 43) {
+		t.Fatalf("CompareAndSwap on an existing key failed")
+	}
+	if v, ok := m.Load(m); !ok || v != 43 {
+		t.Fatalf("CompareAndSwap failed, got %v", v)
+	}
+}
+
 func TestLen(t *testing.T) {
 	m := &rwmap.RWMap[any, any]{}
 	if m.Len() != 0 {
@@ -186,6 +200,26 @@ func TestLen(t *testing.T) {
 		t.Fatalf("Len failed, got %v", m.Len())
 	}
 	m.Delete(m)
+	if m.Len() != 0 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.LoadOrStore(m, 1)
+	if m.Len() != 1 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.CompareAndSwap(m, nil, 42)
+	if m.Len() != 1 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.CompareAndSwap(m, 1, 2)
+	if m.Len() != 1 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.CompareAndDelete(m, nil)
+	if m.Len() != 1 {
+		t.Fatalf("Len failed, got %v", m.Len())
+	}
+	m.Clear()
 	if m.Len() != 0 {
 		t.Fatalf("Len failed, got %v", m.Len())
 	}
