@@ -18,6 +18,16 @@ func TestRefreshCache(t *testing.T) {
 	fmt.Println(c.Get())
 }
 
+func TestRefreshCacheStatic(t *testing.T) {
+	c := refreshcache.NewRefreshCache[int](func() (int, error) {
+		return time.Now().Second(), nil
+	}, 0)
+	fmt.Println(c.Get())
+	fmt.Println(c.Get())
+	time.Sleep(time.Second)
+	fmt.Println(c.Get())
+}
+
 func TestRefreshData(t *testing.T) {
 	d := refreshcache.NewRefreshData[int](time.Second)
 	fmt.Println(d.Get(func() (int, error) {

@@ -15,9 +15,6 @@ func NewRefreshCache[T any](refreshFunc func() (T, error), maxAge time.Duration)
 	if refreshFunc == nil {
 		panic("refreshFunc cannot be nil")
 	}
-	if maxAge <= 0 {
-		panic("maxAge must be positive")
-	}
 	return &RefreshCache[T]{
 		refreshFunc: refreshFunc,
 		data:        NewRefreshData[T](maxAge),
@@ -40,21 +37,18 @@ type RefreshData[T any] struct {
 }
 
 func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
-	if maxAge <= 0 {
-		panic("maxAge must be positive")
-	}
 	return &RefreshData[T]{
 		maxAge: int64(maxAge),
 	}
 }
 
 func (r *RefreshData[T]) Get(refreshFunc func() (T, error)) (data T, err error) {
-	if time.Now().UnixNano()-atomic.LoadInt64(&r.last) < r.maxAge {
+	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixNano()-atomic.LoadInt64(&r.last) < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if time.Now().UnixNano()-r.last < r.maxAge {
+	if (r.maxAge <= 0 && r.last > 0) || (time.Now().UnixNano()-r.last < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	defer func() {
