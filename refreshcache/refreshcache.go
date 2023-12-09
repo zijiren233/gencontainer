@@ -7,11 +7,8 @@ import (
 )
 
 type RefreshCache[T any] struct {
-	lock        sync.Mutex
-	last        int64
-	maxAge      int64
+	data        *RefreshData[T]
 	refreshFunc func() (T, error)
-	data        atomic.Pointer[T]
 }
 
 func NewRefreshCache[T any](refreshFunc func() (T, error), maxAge time.Duration) *RefreshCache[T] {
@@ -23,11 +20,35 @@ func NewRefreshCache[T any](refreshFunc func() (T, error), maxAge time.Duration)
 	}
 	return &RefreshCache[T]{
 		refreshFunc: refreshFunc,
-		maxAge:      int64(maxAge),
+		data:        NewRefreshData[T](maxAge),
 	}
 }
 
 func (r *RefreshCache[T]) Get() (data T, err error) {
+	return r.data.Get(r.refreshFunc)
+}
+
+func (r *RefreshCache[T]) Refresh() (data T, err error) {
+	return r.data.Refresh(r.refreshFunc)
+}
+
+type RefreshData[T any] struct {
+	lock   sync.Mutex
+	last   int64
+	maxAge int64
+	data   atomic.Pointer[T]
+}
+
+func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
+	if maxAge <= 0 {
+		panic("maxAge must be positive")
+	}
+	return &RefreshData[T]{
+		maxAge: int64(maxAge),
+	}
+}
+
+func (r *RefreshData[T]) Get(refreshFunc func() (T, error)) (data T, err error) {
 	if time.Now().UnixNano()-atomic.LoadInt64(&r.last) < r.maxAge {
 		return *r.data.Load(), nil
 	}
@@ -42,10 +63,10 @@ func (r *RefreshCache[T]) Get() (data T, err error) {
 			atomic.StoreInt64(&r.last, time.Now().UnixNano())
 		}
 	}()
-	return r.refreshFunc()
+	return refreshFunc()
 }
 
-func (r *RefreshCache[T]) Refresh() (data T, err error) {
+func (r *RefreshData[T]) Refresh(refreshFunc func() (T, error)) (data T, err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	defer func() {
@@ -54,5 +75,5 @@ func (r *RefreshCache[T]) Refresh() (data T, err error) {
 			atomic.StoreInt64(&r.last, time.Now().UnixNano())
 		}
 	}()
-	return r.refreshFunc()
+	return refreshFunc()
 }
