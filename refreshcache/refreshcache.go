@@ -12,9 +12,6 @@ type RefreshCache[T any] struct {
 }
 
 func NewRefreshCache[T any](refreshFunc func() (T, error), maxAge time.Duration) *RefreshCache[T] {
-	if refreshFunc == nil {
-		panic("refreshFunc cannot be nil")
-	}
 	return &RefreshCache[T]{
 		refreshFunc: refreshFunc,
 		data:        NewRefreshData[T](maxAge),
@@ -27,6 +24,14 @@ func (r *RefreshCache[T]) Get() (data T, err error) {
 
 func (r *RefreshCache[T]) Refresh() (data T, err error) {
 	return r.data.Refresh(r.refreshFunc)
+}
+
+func (r *RefreshCache[T]) Clear() {
+	r.data.Clear()
+}
+
+func (r *RefreshCache[T]) Data() *RefreshData[T] {
+	return r.data
 }
 
 type RefreshData[T any] struct {
@@ -43,18 +48,18 @@ func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
 }
 
 func (r *RefreshData[T]) Get(refreshFunc func() (T, error)) (data T, err error) {
-	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixNano()-atomic.LoadInt64(&r.last) < r.maxAge) {
+	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixMicro()-atomic.LoadInt64(&r.last) < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if (r.maxAge <= 0 && r.last > 0) || (time.Now().UnixNano()-r.last < r.maxAge) {
+	if (r.maxAge <= 0 && r.last > 0) || (time.Now().UnixMicro()-r.last < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	defer func() {
 		if err == nil {
 			r.data.Store(&data)
-			atomic.StoreInt64(&r.last, time.Now().UnixNano())
+			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
 		}
 	}()
 	return refreshFunc()
@@ -66,8 +71,12 @@ func (r *RefreshData[T]) Refresh(refreshFunc func() (T, error)) (data T, err err
 	defer func() {
 		if err == nil {
 			r.data.Store(&data)
-			atomic.StoreInt64(&r.last, time.Now().UnixNano())
+			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
 		}
 	}()
 	return refreshFunc()
+}
+
+func (r *RefreshData[T]) Clear() {
+	atomic.StoreInt64(&r.last, 0)
 }
