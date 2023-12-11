@@ -7,26 +7,26 @@ import (
 	"time"
 )
 
-type refreshFunc[T any] func(ctx context.Context, args ...any) (T, error)
+type RefreshFunc[T any] func(ctx context.Context, args ...any) (T, error)
 
 type RefreshCache[T any] struct {
 	data *RefreshData[T]
-	refreshFunc[T]
+	RefreshFunc[T]
 }
 
-func NewRefreshCache[T any](refreshFunc refreshFunc[T], maxAge time.Duration) *RefreshCache[T] {
+func NewRefreshCache[T any](refreshFunc RefreshFunc[T], maxAge time.Duration) *RefreshCache[T] {
 	return &RefreshCache[T]{
-		refreshFunc: refreshFunc,
+		RefreshFunc: refreshFunc,
 		data:        NewRefreshData[T](maxAge),
 	}
 }
 
 func (r *RefreshCache[T]) Get(ctx context.Context, args ...any) (data T, err error) {
-	return r.data.Get(ctx, r.refreshFunc, args...)
+	return r.data.Get(ctx, r.RefreshFunc, args...)
 }
 
 func (r *RefreshCache[T]) Refresh(ctx context.Context, args ...any) (data T, err error) {
-	return r.data.Refresh(ctx, r.refreshFunc, args...)
+	return r.data.Refresh(ctx, r.RefreshFunc, args...)
 }
 
 func (r *RefreshCache[T]) Clear() {
@@ -62,7 +62,7 @@ func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
 	}
 }
 
-func (r *RefreshData[T]) Get(ctx context.Context, refreshFunc refreshFunc[T], args ...any) (data T, err error) {
+func (r *RefreshData[T]) Get(ctx context.Context, refreshFunc RefreshFunc[T], args ...any) (data T, err error) {
 	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixMicro()-atomic.LoadInt64(&r.last) < r.maxAge) {
 		return *r.data.Load(), nil
 	}
@@ -80,7 +80,7 @@ func (r *RefreshData[T]) Get(ctx context.Context, refreshFunc refreshFunc[T], ar
 	return refreshFunc(ctx, args...)
 }
 
-func (r *RefreshData[T]) Refresh(ctx context.Context, refreshFunc refreshFunc[T], args ...any) (data T, err error) {
+func (r *RefreshData[T]) Refresh(ctx context.Context, refreshFunc RefreshFunc[T], args ...any) (data T, err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	defer func() {
