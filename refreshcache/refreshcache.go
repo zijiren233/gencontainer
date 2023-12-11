@@ -1,6 +1,7 @@
 package refreshcache
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -8,26 +9,38 @@ import (
 
 type RefreshCache[T any] struct {
 	data        *RefreshData[T]
-	refreshFunc func() (T, error)
+	refreshFunc func(context.Context) (T, error)
 }
 
-func NewRefreshCache[T any](refreshFunc func() (T, error), maxAge time.Duration) *RefreshCache[T] {
+func NewRefreshCache[T any](refreshFunc func(context.Context) (T, error), maxAge time.Duration) *RefreshCache[T] {
 	return &RefreshCache[T]{
 		refreshFunc: refreshFunc,
 		data:        NewRefreshData[T](maxAge),
 	}
 }
 
-func (r *RefreshCache[T]) Get() (data T, err error) {
-	return r.data.Get(r.refreshFunc)
+func (r *RefreshCache[T]) Get(ctx context.Context) (data T, err error) {
+	return r.data.Get(ctx, r.refreshFunc)
 }
 
-func (r *RefreshCache[T]) Refresh() (data T, err error) {
-	return r.data.Refresh(r.refreshFunc)
+func (r *RefreshCache[T]) Refresh(ctx context.Context) (data T, err error) {
+	return r.data.Refresh(ctx, r.refreshFunc)
 }
 
 func (r *RefreshCache[T]) Clear() {
 	r.data.Clear()
+}
+
+func (r *RefreshCache[T]) Last() int64 {
+	return r.data.Last()
+}
+
+func (r *RefreshCache[T]) MaxAge() int64 {
+	return r.data.MaxAge()
+}
+
+func (r *RefreshCache[T]) Raw() T {
+	return r.data.Raw()
 }
 
 func (r *RefreshCache[T]) Data() *RefreshData[T] {
@@ -47,7 +60,7 @@ func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
 	}
 }
 
-func (r *RefreshData[T]) Get(refreshFunc func() (T, error)) (data T, err error) {
+func (r *RefreshData[T]) Get(ctx context.Context, refreshFunc func(context.Context) (T, error)) (data T, err error) {
 	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixMicro()-atomic.LoadInt64(&r.last) < r.maxAge) {
 		return *r.data.Load(), nil
 	}
@@ -62,10 +75,10 @@ func (r *RefreshData[T]) Get(refreshFunc func() (T, error)) (data T, err error) 
 			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
 		}
 	}()
-	return refreshFunc()
+	return refreshFunc(ctx)
 }
 
-func (r *RefreshData[T]) Refresh(refreshFunc func() (T, error)) (data T, err error) {
+func (r *RefreshData[T]) Refresh(ctx context.Context, refreshFunc func(context.Context) (T, error)) (data T, err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	defer func() {
@@ -74,9 +87,21 @@ func (r *RefreshData[T]) Refresh(refreshFunc func() (T, error)) (data T, err err
 			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
 		}
 	}()
-	return refreshFunc()
+	return refreshFunc(ctx)
 }
 
 func (r *RefreshData[T]) Clear() {
 	atomic.StoreInt64(&r.last, 0)
+}
+
+func (r *RefreshData[T]) Last() int64 {
+	return atomic.LoadInt64(&r.last)
+}
+
+func (r *RefreshData[T]) MaxAge() int64 {
+	return r.maxAge
+}
+
+func (r *RefreshData[T]) Raw() T {
+	return *r.data.Load()
 }
