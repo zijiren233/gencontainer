@@ -63,18 +63,18 @@ func NewRefreshData[T any](maxAge time.Duration) *RefreshData[T] {
 }
 
 func (r *RefreshData[T]) Get(ctx context.Context, refreshFunc RefreshFunc[T], args ...any) (data T, err error) {
-	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixMicro()-atomic.LoadInt64(&r.last) < r.maxAge) {
+	if (r.maxAge <= 0 && atomic.LoadInt64(&r.last) > 0) || (time.Now().UnixNano()-atomic.LoadInt64(&r.last) < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if (r.maxAge <= 0 && r.last > 0) || (time.Now().UnixMicro()-r.last < r.maxAge) {
+	if (r.maxAge <= 0 && r.last > 0) || (time.Now().UnixNano()-r.last < r.maxAge) {
 		return *r.data.Load(), nil
 	}
 	defer func() {
 		if err == nil {
 			r.data.Store(&data)
-			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
+			atomic.StoreInt64(&r.last, time.Now().UnixNano())
 		}
 	}()
 	return refreshFunc(ctx, args...)
@@ -86,7 +86,7 @@ func (r *RefreshData[T]) Refresh(ctx context.Context, refreshFunc RefreshFunc[T]
 	defer func() {
 		if err == nil {
 			r.data.Store(&data)
-			atomic.StoreInt64(&r.last, time.Now().UnixMicro())
+			atomic.StoreInt64(&r.last, time.Now().UnixNano())
 		}
 	}()
 	return refreshFunc(ctx, args...)
