@@ -20,18 +20,18 @@ func TestRefreshCache(t *testing.T) {
 }
 
 func TestRefreshCacheWithArgs(t *testing.T) {
-	c := refreshcache.NewRefreshCache[int](func(ctx context.Context, args ...any) (int, error) {
+	c := refreshcache.NewRefreshCache[int](func(ctx context.Context, args ...int) (int, error) {
 		if len(args) == 0 {
 			return 0, nil
 		}
-		return args[0].(int) + time.Now().Second(), nil
+		return args[0] + time.Now().Second(), nil
 	}, time.Second)
 	fmt.Println(c.Get(context.Background(), 1))
 	fmt.Println(c.Refresh(context.Background()))
 }
 
 func TestRefreshCacheStatic(t *testing.T) {
-	c := refreshcache.NewRefreshCache[int](func(context.Context, ...any) (int, error) {
+	c := refreshcache.NewRefreshCache[int](func(context.Context, ...int) (int, error) {
 		return time.Now().Second(), nil
 	}, 0)
 	fmt.Println(c.Get(context.Background()))
@@ -41,7 +41,7 @@ func TestRefreshCacheStatic(t *testing.T) {
 }
 
 func TestRefreshData(t *testing.T) {
-	d := refreshcache.NewRefreshData[int](time.Second)
+	d := refreshcache.NewRefreshData[int, any](time.Second)
 	fmt.Println(d.Get(context.Background(), func(context.Context, ...any) (int, error) {
 		return time.Now().Second(), nil
 	}))
