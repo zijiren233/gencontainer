@@ -71,9 +71,15 @@ func (sc *SyncCache[K, V]) Delete(key K) {
 }
 
 func (sc *SyncCache[K, V]) LoadAndDelete(key K) (value *Entry[V], loaded bool) {
-	e, loaded := sc.cache.LoadAndDelete(key)
-	if loaded && !e.IsExpired() {
-		return e, loaded
+	value, loaded = sc.cache.LoadAndDelete(key)
+	if loaded {
+		if sc.deletedCallback != nil {
+			sc.deletedCallback(value.value)
+		}
+		if value.IsExpired() {
+			return nil, false
+		}
+		return value, loaded
 	}
 	return
 }
@@ -87,7 +93,14 @@ func (sc *SyncCache[K, V]) CompareAndDelete(key K, oldEntry *Entry[V]) (success 
 }
 
 func (sc *SyncCache[K, V]) Clear() {
-	sc.cache.Clear()
+	if sc.deletedCallback == nil {
+		sc.cache.Clear()
+		return
+	}
+	sc.cache.Range(func(key K, value *Entry[V]) bool {
+		sc.CompareAndDelete(key, value)
+		return true
+	})
 }
 
 func (sc *SyncCache[K, V]) Range(f func(key K, value *Entry[V]) bool) {
@@ -95,7 +108,7 @@ func (sc *SyncCache[K, V]) Range(f func(key K, value *Entry[V]) bool) {
 		if !value.IsExpired() {
 			return f(key, value)
 		}
-		sc.cache.CompareAndDelete(key, value)
+		sc.CompareAndDelete(key, value)
 		return true
 	})
 }
