@@ -50,9 +50,9 @@ func (r *RefreshCache[T, A]) Data() *RefreshData[T, A] {
 }
 
 type RefreshData[T any, A any] struct {
-	lock   sync.Mutex
 	last   int64
 	maxAge int64
+	lock   sync.Mutex
 	data   atomic.Pointer[T]
 }
 
