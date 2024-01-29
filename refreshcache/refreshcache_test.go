@@ -52,4 +52,5 @@ func TestRefreshData(t *testing.T) {
 	fmt.Println(d.Get(context.Background(), func(context.Context, ...any) (int, error) {
 		return time.Now().Second(), nil
 	}))
+	fmt.Printf("LastTime: %v\n", d.LastTime())
 }

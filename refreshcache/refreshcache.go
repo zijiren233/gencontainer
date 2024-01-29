@@ -10,43 +10,56 @@ import (
 type RefreshFunc[T any, A any] func(ctx context.Context, args ...A) (T, error)
 
 type RefreshCache[T any, A any] struct {
-	data *RefreshData[T, A]
-	RefreshFunc[T, A]
+	refreshData *RefreshData[T, A]
+	refreshFunc atomic.Pointer[RefreshFunc[T, A]]
 }
 
 func NewRefreshCache[T any, A any](refreshFunc RefreshFunc[T, A], maxAge time.Duration) *RefreshCache[T, A] {
-	return &RefreshCache[T, A]{
-		RefreshFunc: refreshFunc,
-		data:        NewRefreshData[T, A](maxAge),
+	c := RefreshCache[T, A]{
+		refreshData: NewRefreshData[T, A](maxAge),
 	}
+	c.SetRefreshFunc(refreshFunc)
+	return &c
+}
+
+func (r *RefreshCache[T, A]) GetRefreshFunc() RefreshFunc[T, A] {
+	return *r.refreshFunc.Load()
+}
+
+func (r *RefreshCache[T, A]) SetRefreshFunc(refreshFunc RefreshFunc[T, A]) {
+	r.refreshFunc.Store(&refreshFunc)
 }
 
 func (r *RefreshCache[T, A]) Get(ctx context.Context, args ...A) (data T, err error) {
-	return r.data.Get(ctx, r.RefreshFunc, args...)
+	return r.refreshData.Get(ctx, *r.refreshFunc.Load(), args...)
 }
 
 func (r *RefreshCache[T, A]) Refresh(ctx context.Context, args ...A) (data T, err error) {
-	return r.data.Refresh(ctx, r.RefreshFunc, args...)
+	return r.refreshData.Refresh(ctx, *r.refreshFunc.Load(), args...)
 }
 
 func (r *RefreshCache[T, A]) Clear() {
-	r.data.Clear()
+	r.refreshData.Clear()
 }
 
 func (r *RefreshCache[T, A]) Last() int64 {
-	return r.data.Last()
+	return r.refreshData.Last()
+}
+
+func (r *RefreshCache[T, A]) LastTime() time.Time {
+	return r.refreshData.LastTime()
 }
 
 func (r *RefreshCache[T, A]) MaxAge() int64 {
-	return r.data.MaxAge()
+	return r.refreshData.MaxAge()
 }
 
 func (r *RefreshCache[T, A]) Raw() T {
-	return r.data.Raw()
+	return r.refreshData.Raw()
 }
 
 func (r *RefreshCache[T, A]) Data() *RefreshData[T, A] {
-	return r.data
+	return r.refreshData
 }
 
 type RefreshData[T any, A any] struct {
@@ -98,6 +111,10 @@ func (r *RefreshData[T, A]) Clear() {
 
 func (r *RefreshData[T, A]) Last() int64 {
 	return atomic.LoadInt64(&r.last)
+}
+
+func (r *RefreshData[T, A]) LastTime() time.Time {
+	return time.Unix(0, atomic.LoadInt64(&r.last))
 }
 
 func (r *RefreshData[T, A]) MaxAge() int64 {
