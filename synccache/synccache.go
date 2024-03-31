@@ -1,6 +1,7 @@
 package synccache
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/zijiren233/gencontainer/rwmap"
@@ -90,6 +91,17 @@ func (sc *SyncCache[K, V]) CompareAndDelete(key K, oldEntry *Entry[V]) (success 
 		sc.deletedCallback(oldEntry.value)
 	}
 	return b
+}
+
+func (sc *SyncCache[K, V]) CompareValueAndDelete(key K, oldValue V) (success bool) {
+	e, ok := sc.Load(key)
+	if !ok {
+		return false
+	}
+	if !reflect.ValueOf(oldValue).Equal(reflect.ValueOf(e.value)) {
+		return false
+	}
+	return sc.CompareAndDelete(key, e)
 }
 
 func (sc *SyncCache[K, V]) Clear() {
