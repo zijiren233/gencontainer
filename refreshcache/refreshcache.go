@@ -72,6 +72,10 @@ func NewRefreshData[T any, A any](maxAge time.Duration, opts ...RefreshDataOptio
 	return rd
 }
 
+type oldVal struct{}
+
+var OldValKey = oldVal{}
+
 func (r *RefreshData[T, A]) Get(ctx context.Context, refreshFunc RefreshFunc[T, A], args ...A) (data T, err error) {
 	last := atomic.LoadInt64(&r.last)
 	if (r.maxAge < 0 && last > 0) || (time.Now().UnixNano()-last < r.maxAge) {
@@ -99,7 +103,7 @@ func (r *RefreshData[T, A]) Get(ctx context.Context, refreshFunc RefreshFunc[T, 
 			atomic.StoreInt64(&r.last, 0)
 		}
 	}()
-	return refreshFunc(ctx, args...)
+	return refreshFunc(context.WithValue(ctx, OldValKey, *r.data.Load()), args...)
 }
 
 func (r *RefreshData[T, A]) Refresh(ctx context.Context, refreshFunc RefreshFunc[T, A], args ...A) (data T, err error) {
@@ -116,7 +120,7 @@ func (r *RefreshData[T, A]) Refresh(ctx context.Context, refreshFunc RefreshFunc
 			atomic.StoreInt64(&r.last, 0)
 		}
 	}()
-	return refreshFunc(ctx, args...)
+	return refreshFunc(context.WithValue(ctx, OldValKey, *r.data.Load()), args...)
 }
 
 func (r *RefreshData[T, A]) Clear() {

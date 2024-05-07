@@ -84,3 +84,12 @@ func TestRaw(t *testing.T) {
 	}))
 	fmt.Println(c.Raw())
 }
+
+func TestOldVal(t *testing.T) {
+	c := refreshcache.NewRefreshCache[int](func(ctx context.Context, _ ...any) (int, error) {
+		t.Log(ctx.Value(refreshcache.OldValKey))
+		return 3, nil
+	}, time.Second)
+	_, _ = c.Get(context.Background())
+	_, _ = c.Refresh(context.Background())
+}
