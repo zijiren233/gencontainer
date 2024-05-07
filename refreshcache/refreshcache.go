@@ -9,7 +9,7 @@ import (
 
 type RefreshFunc[T any, A any] func(ctx context.Context, args ...A) (T, error)
 
-type ClearFunc[T any, A any] func(T, ...A) error
+type ClearFunc[T any, A any] func(ctx context.Context, args ...A) error
 
 type RefreshCache[T any, A any] struct {
 	*RefreshData[T, A]
@@ -49,8 +49,8 @@ func (r *RefreshCache[T, A]) Data() *RefreshData[T, A] {
 	return r.RefreshData
 }
 
-func (r *RefreshCache[T, A]) Clear(args ...A) error {
-	return r.RefreshData.Clear(*r.ClearFunc.Load(), args...)
+func (r *RefreshCache[T, A]) Clear(ctx context.Context, args ...A) error {
+	return r.RefreshData.Clear(ctx, *r.ClearFunc.Load(), args...)
 }
 
 type RefreshData[T any, A any] struct {
@@ -134,11 +134,11 @@ func (r *RefreshData[T, A]) Refresh(ctx context.Context, refreshFunc RefreshFunc
 	return refreshFunc(context.WithValue(ctx, OldValKey, *r.data.Load()), args...)
 }
 
-func (r *RefreshData[T, A]) Clear(clearFunc ClearFunc[T, A], args ...A) error {
+func (r *RefreshData[T, A]) Clear(ctx context.Context, clearFunc ClearFunc[T, A], args ...A) error {
 	if clearFunc != nil {
 		data := r.data.Load()
 		atomic.StoreInt64(&r.last, 0)
-		return clearFunc(*data, args...)
+		return clearFunc(context.WithValue(ctx, OldValKey, *data), args...)
 	}
 	atomic.StoreInt64(&r.last, 0)
 	return nil
