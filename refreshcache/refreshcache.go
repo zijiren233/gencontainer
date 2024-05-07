@@ -9,12 +9,12 @@ import (
 
 type RefreshFunc[T any, A any] func(ctx context.Context, args ...A) (T, error)
 
-type ClearFunc[T any] func(T) error
+type ClearFunc[T any, A any] func(T, ...A) error
 
 type RefreshCache[T any, A any] struct {
 	*RefreshData[T, A]
 	RefreshFunc atomic.Pointer[RefreshFunc[T, A]]
-	ClearFunc   atomic.Pointer[ClearFunc[T]]
+	ClearFunc   atomic.Pointer[ClearFunc[T, A]]
 }
 
 func NewRefreshCache[T any, A any](refreshFunc RefreshFunc[T, A], maxAge time.Duration, opts ...RefreshDataOption[T, A]) *RefreshCache[T, A] {
@@ -25,7 +25,7 @@ func NewRefreshCache[T any, A any](refreshFunc RefreshFunc[T, A], maxAge time.Du
 	return &c
 }
 
-func (r *RefreshCache[T, A]) SetClearFunc(clearFunc ClearFunc[T]) {
+func (r *RefreshCache[T, A]) SetClearFunc(clearFunc ClearFunc[T, A]) {
 	r.ClearFunc.Store(&clearFunc)
 }
 
@@ -49,8 +49,8 @@ func (r *RefreshCache[T, A]) Data() *RefreshData[T, A] {
 	return r.RefreshData
 }
 
-func (r *RefreshCache[T, A]) Clear() error {
-	return r.RefreshData.Clear(*r.ClearFunc.Load())
+func (r *RefreshCache[T, A]) Clear(args ...A) error {
+	return r.RefreshData.Clear(*r.ClearFunc.Load(), args...)
 }
 
 type RefreshData[T any, A any] struct {
@@ -134,11 +134,11 @@ func (r *RefreshData[T, A]) Refresh(ctx context.Context, refreshFunc RefreshFunc
 	return refreshFunc(context.WithValue(ctx, OldValKey, *r.data.Load()), args...)
 }
 
-func (r *RefreshData[T, A]) Clear(clearFunc ClearFunc[T]) error {
+func (r *RefreshData[T, A]) Clear(clearFunc ClearFunc[T, A], args ...A) error {
 	if clearFunc != nil {
 		data := r.data.Load()
 		atomic.StoreInt64(&r.last, 0)
-		return clearFunc(*data)
+		return clearFunc(*data, args...)
 	}
 	atomic.StoreInt64(&r.last, 0)
 	return nil
