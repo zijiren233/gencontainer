@@ -388,7 +388,7 @@ func (m *RWMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
 // CompareAndSwap swaps the old and new values for key
 // if the value stored in the map is equal to old.
 // The old value must be of a comparable type.
-func (m *RWMap[K, V]) CompareAndSwap(key K, old, new V) bool {
+func (m *RWMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
 		return e.tryCompareAndSwap(old, new)
@@ -399,7 +399,7 @@ func (m *RWMap[K, V]) CompareAndSwap(key K, old, new V) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	read = m.loadReadOnly()
-	swapped := false
+	swapped = false
 	if e, ok := read.m[key]; ok {
 		swapped = e.tryCompareAndSwap(old, new)
 	} else if e, ok := m.dirty[key]; ok {
@@ -484,7 +484,8 @@ func (m *RWMap[K, V]) Range(f func(key K, value V) bool) {
 		read = m.loadReadOnly()
 		if read.amended {
 			read = readOnly[K, V]{m: m.dirty}
-			m.read.Store(&read)
+			copyRead := read
+			m.read.Store(&copyRead)
 			m.dirty = nil
 			m.misses = 0
 		}
@@ -502,13 +503,26 @@ func (m *RWMap[K, V]) Range(f func(key K, value V) bool) {
 	}
 }
 
+// Clear deletes all the entries, resulting in an empty Map.
 func (m *RWMap[K, V]) Clear() {
+	read := m.loadReadOnly()
+	if len(read.m) == 0 && !read.amended {
+		// Avoid allocating a new readOnly when the map is already clear.
+		return
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.dirty = nil
+
+	read = m.loadReadOnly()
+	if len(read.m) > 0 || read.amended {
+		m.read.Store(&readOnly[K, V]{})
+	}
+
+	clear(m.dirty)
+	// Don't immediately promote the newly-cleared dirty map on the next operation.
 	m.misses = 0
 	m.len = 0
-	m.read.Store(&readOnly[K, V]{})
 }
 
 func (m *RWMap[K, V]) Len() (n int64) {
