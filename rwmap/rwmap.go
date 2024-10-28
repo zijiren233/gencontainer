@@ -71,7 +71,10 @@ type RWMap[K comparable, V any] struct {
 	misses int
 }
 
-var expunged = unsafe.Pointer(new(any))
+var (
+	expunged        = unsafe.Pointer(new(any))
+	expungedUintptr = uintptr(expunged)
+)
 
 // readOnly is an immutable struct stored atomically in the Map.read field.
 type readOnly[K comparable, V any] struct {
@@ -146,7 +149,7 @@ func (m *RWMap[K, V]) Load(key K) (value V, ok bool) {
 
 func (e *entry[V]) load() (value V, ok bool) {
 	p := e.p.Load()
-	if p == nil || p == (*V)(expunged) {
+	if p == nil || uintptr(unsafe.Pointer(p)) == expungedUintptr {
 		return
 	}
 	return *p, true
@@ -165,7 +168,7 @@ func (m *RWMap[K, V]) Store(key K, value V) {
 // the entry unchanged.
 func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 	p := e.p.Load()
-	if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
+	if p == nil || uintptr(unsafe.Pointer(p)) == expungedUintptr || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 		return false
 	}
 
@@ -178,7 +181,7 @@ func (e *entry[V]) tryCompareAndSwap(old, new V) bool {
 			return true
 		}
 		p = e.p.Load()
-		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
+		if p == nil || uintptr(unsafe.Pointer(p)) == expungedUintptr || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 			return false
 		}
 	}
@@ -249,7 +252,7 @@ func (m *RWMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 // returns with ok==false.
 func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 	p := e.p.Load()
-	if p == (*V)(expunged) {
+	if uintptr(unsafe.Pointer(p)) == expungedUintptr {
 		return
 	}
 	if p != nil {
@@ -265,7 +268,7 @@ func (e *entry[V]) tryLoadOrStore(i V) (actual V, loaded, ok bool) {
 			return i, false, true
 		}
 		p = e.p.Load()
-		if p == (*V)(expunged) {
+		if uintptr(unsafe.Pointer(p)) == expungedUintptr {
 			return
 		}
 		if p != nil {
@@ -312,7 +315,7 @@ func (m *RWMap[K, V]) Delete(key K) {
 func (e *entry[V]) delete() (value V, ok bool) {
 	for {
 		p := e.p.Load()
-		if p == nil || p == (*V)(expunged) {
+		if p == nil || uintptr(unsafe.Pointer(p)) == expungedUintptr {
 			return
 		}
 		if e.p.CompareAndSwap(p, nil) {
@@ -328,7 +331,7 @@ func (e *entry[V]) delete() (value V, ok bool) {
 func (e *entry[V]) trySwap(i *V) (*V, bool) {
 	for {
 		p := e.p.Load()
-		if p == (*V)(expunged) {
+		if uintptr(unsafe.Pointer(p)) == expungedUintptr {
 			return nil, false
 		}
 		if e.p.CompareAndSwap(p, i) {
@@ -448,7 +451,7 @@ func (m *RWMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	for ok {
 		p := e.p.Load()
-		if p == nil || p == (*V)(expunged) || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
+		if p == nil || uintptr(unsafe.Pointer(p)) == expungedUintptr || !reflect.ValueOf(*p).Equal(reflect.ValueOf(old)) {
 			return false
 		}
 		if e.p.CompareAndSwap(p, nil) {
@@ -526,29 +529,15 @@ func (m *RWMap[K, V]) Clear() {
 }
 
 func (m *RWMap[K, V]) Len() (n int64) {
-	// read := m.loadReadOnly()
-	// if read.amended {
-	// 	m.mu.Lock()
-	// 	read = m.loadReadOnly()
-	// 	if read.amended {
-	// 		read = readOnly[K, V]{m: m.dirty}
-	// 		m.read.Store(&read)
-	// 		m.dirty = nil
-	// 		m.misses = 0
-	// 	}
-	// 	m.mu.Unlock()
-	// }
-
-	// for _, e := range read.m {
-	// 	_, ok := e.load()
-	// 	if !ok {
-	// 		continue
-	// 	}
-	// 	n++
-	// }
-
-	// return n
 	return atomic.LoadInt64(&m.len)
+}
+
+func (m *RWMap[K, V]) SlowLen() (n int64) {
+	m.Range(func(_ K, _ V) bool {
+		n++
+		return true
+	})
+	return
 }
 
 func (m *RWMap[K, V]) missLocked() {
@@ -583,5 +572,5 @@ func (e *entry[V]) tryExpungeLocked() (isExpunged bool) {
 		}
 		p = e.p.Load()
 	}
-	return p == (*V)(expunged)
+	return uintptr(unsafe.Pointer(p)) == expungedUintptr
 }

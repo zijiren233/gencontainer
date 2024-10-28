@@ -22,11 +22,11 @@ func (e *Entry[V]) Value() V {
 }
 
 func (e *Entry[V]) IsExpired() bool {
-	return time.Now().After(time.UnixMilli(atomic.LoadInt64(&e.expiration)))
+	return time.Now().UnixMilli() > atomic.LoadInt64(&e.expiration)
 }
 
 func (e *Entry[V]) AddExpiration(d time.Duration) {
-	atomic.AddInt64(&e.expiration, int64(d))
+	atomic.AddInt64(&e.expiration, int64(d.Milliseconds()))
 }
 
 func (e *Entry[V]) SetExpiration(t time.Time) {

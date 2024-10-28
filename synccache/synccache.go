@@ -2,15 +2,40 @@ package synccache
 
 import (
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zijiren233/gencontainer/rwmap"
 )
 
+type trim interface {
+	trim()
+}
+
+var (
+	caches    = rwmap.RWMap[trim, struct{}]{}
+	startOnce sync.Once
+)
+
+func runTrim() {
+	startOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(time.Second * 5)
+			defer ticker.Stop()
+			for range ticker.C {
+				caches.Range(func(key trim, _ struct{}) bool {
+					key.trim()
+					return true
+				})
+			}
+		}()
+	})
+}
+
 type SyncCache[K comparable, V any] struct {
 	cache           rwmap.RWMap[K, *Entry[V]]
 	deletedCallback func(v V)
-	ticker          *time.Ticker
 }
 
 type SyncCacheConfig[K comparable, V any] func(sc *SyncCache[K, V])
@@ -22,23 +47,27 @@ func WithDeletedCallback[K comparable, V any](callback func(v V)) SyncCacheConfi
 }
 
 func NewSyncCache[K comparable, V any](trimTime time.Duration, conf ...SyncCacheConfig[K, V]) *SyncCache[K, V] {
-	sc := &SyncCache[K, V]{
-		ticker: time.NewTicker(trimTime),
-	}
+	sc := &SyncCache[K, V]{}
 	for _, c := range conf {
 		c(sc)
 	}
-	go func() {
-		for range sc.ticker.C {
-			sc.trim()
-		}
-	}()
+	sc.Start()
 	return sc
 }
 
+func (sc *SyncCache[K, V]) Start() {
+	caches.Store(sc, struct{}{})
+	runTrim()
+}
+
+func (sc *SyncCache[K, V]) Close() {
+	caches.Delete(sc)
+}
+
 func (sc *SyncCache[K, V]) trim() {
+	now := time.Now().UnixMilli()
 	sc.cache.Range(func(key K, value *Entry[V]) bool {
-		if value.IsExpired() {
+		if now > atomic.LoadInt64(&value.expiration) {
 			sc.CompareAndDelete(key, value)
 		}
 		return true
@@ -46,62 +75,72 @@ func (sc *SyncCache[K, V]) trim() {
 }
 
 func (sc *SyncCache[K, V]) Store(key K, value V, expire time.Duration) {
-	sc.LoadOrStore(key, value, expire)
+	sc.cache.Store(key, NewEntry[V](value, expire))
 }
 
 func (sc *SyncCache[K, V]) Load(key K) (value *Entry[V], loaded bool) {
 	e, ok := sc.cache.Load(key)
-	if ok && !e.IsExpired() {
-		return e, ok
+	if !ok {
+		return nil, false
+	}
+	if !e.IsExpired() {
+		return e, true
 	}
 	sc.CompareAndDelete(key, e)
-	return
+	return nil, false
 }
 
 func (sc *SyncCache[K, V]) LoadOrStore(key K, value V, expire time.Duration) (actual *Entry[V], loaded bool) {
-	e, loaded := sc.cache.LoadOrStore(key, NewEntry[V](value, expire))
-	if loaded && e.IsExpired() {
-		sc.CompareAndDelete(key, e)
-		return sc.LoadOrStore(key, value, expire)
+	for {
+		e, loaded := sc.cache.LoadOrStore(key, NewEntry[V](value, expire))
+		if !loaded {
+			return e, false
+		}
+		if !e.IsExpired() {
+			return e, true
+		}
+		if sc.CompareAndDelete(key, e) {
+			continue
+		}
+		return e, true
 	}
-	return e, loaded
 }
 
 func (sc *SyncCache[K, V]) Delete(key K) {
-	sc.LoadAndDelete(key)
+	if e, ok := sc.cache.LoadAndDelete(key); ok && sc.deletedCallback != nil {
+		sc.deletedCallback(e.value)
+	}
 }
 
 func (sc *SyncCache[K, V]) LoadAndDelete(key K) (value *Entry[V], loaded bool) {
 	value, loaded = sc.cache.LoadAndDelete(key)
-	if loaded {
+	if !loaded {
+		return nil, false
+	}
+	if value.IsExpired() {
 		if sc.deletedCallback != nil {
 			sc.deletedCallback(value.value)
 		}
-		if value.IsExpired() {
-			return nil, false
-		}
-		return value, loaded
+		return nil, false
+	}
+	if sc.deletedCallback != nil {
+		sc.deletedCallback(value.value)
+	}
+	return value, true
+}
+
+func (sc *SyncCache[K, V]) CompareAndDelete(key K, oldEntry *Entry[V]) (success bool) {
+	if success = sc.cache.CompareAndDelete(key, oldEntry); success && sc.deletedCallback != nil {
+		sc.deletedCallback(oldEntry.value)
 	}
 	return
 }
 
-func (sc *SyncCache[K, V]) CompareAndDelete(key K, oldEntry *Entry[V]) (success bool) {
-	b := sc.cache.CompareAndDelete(key, oldEntry)
-	if b && sc.deletedCallback != nil {
-		sc.deletedCallback(oldEntry.value)
-	}
-	return b
-}
-
 func (sc *SyncCache[K, V]) CompareValueAndDelete(key K, oldValue V) (success bool) {
-	e, ok := sc.Load(key)
-	if !ok {
-		return false
+	if e, ok := sc.Load(key); ok && reflect.ValueOf(oldValue).Equal(reflect.ValueOf(e.value)) {
+		return sc.CompareAndDelete(key, e)
 	}
-	if !reflect.ValueOf(oldValue).Equal(reflect.ValueOf(e.value)) {
-		return false
-	}
-	return sc.CompareAndDelete(key, e)
+	return false
 }
 
 func (sc *SyncCache[K, V]) Clear() {
