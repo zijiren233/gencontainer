@@ -54,13 +54,13 @@ func (r *RefreshCache[T, A]) Clear(ctx context.Context, args ...A) error {
 }
 
 type RefreshData[T any, A any] struct {
+	err     atomic.Pointer[error]
+	data    atomic.Pointer[T]
 	last    int64
 	maxAge  int64
 	lastErr int64
 	errAge  int64
-	err     atomic.Pointer[error]
 	lock    sync.Mutex
-	data    atomic.Pointer[T]
 }
 
 type RefreshDataOption[T any, A any] func(*RefreshData[T, A])

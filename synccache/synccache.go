@@ -34,8 +34,8 @@ func runTrim() {
 }
 
 type SyncCache[K comparable, V any] struct {
-	cache           rwmap.RWMap[K, *Entry[V]]
 	deletedCallback func(v V)
+	cache           rwmap.RWMap[K, *Entry[V]]
 }
 
 type SyncCacheConfig[K comparable, V any] func(sc *SyncCache[K, V])

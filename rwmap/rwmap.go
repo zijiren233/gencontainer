@@ -34,11 +34,7 @@ import (
 // CompareAndSwap is a write operation when it returns swapped set to true;
 // and CompareAndDelete is a write operation when it returns deleted set to true.
 type RWMap[K comparable, V any] struct {
-	// when used on 32-bit systems, alignment guarantees for atomic operations on
-	len int64
-
 	noCopy utils.NoCopy
-	mu     sync.Mutex
 	// read contains the portion of the map's contents that are safe for
 	// concurrent access (with or without mu held).
 	//
@@ -62,6 +58,8 @@ type RWMap[K comparable, V any] struct {
 	// making a shallow copy of the clean map, omitting stale entries.
 	dirty map[K]*entry[V]
 
+	len int64
+
 	// misses counts the number of loads since the read map was last updated that
 	// needed to lock mu to determine whether the key was present.
 	//
@@ -69,6 +67,7 @@ type RWMap[K comparable, V any] struct {
 	// map, the dirty map will be promoted to the read map (in the unamended
 	// state) and the next store to the map will make a new dirty copy.
 	misses int
+	mu     sync.Mutex
 }
 
 var (

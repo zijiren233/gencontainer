@@ -6,8 +6,8 @@ import (
 )
 
 type Entry[V any] struct {
-	expiration int64
 	value      V
+	expiration int64
 }
 
 func NewEntry[V any](value V, expire time.Duration) *Entry[V] {
