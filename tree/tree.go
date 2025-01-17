@@ -245,16 +245,16 @@ func (n *Node[T]) TraversalBFS() (res []*Node[T]) {
 	return
 }
 
-func (n *Node[T]) traversalBFS(val [][]*Node[T], levle int) (res [][]*Node[T]) {
+func (n *Node[T]) traversalBFS(val [][]*Node[T], level int) (res [][]*Node[T]) {
 	if n == nil {
 		return val
 	}
-	if len(val) == levle {
+	if len(val) == level {
 		val = append(val, []*Node[T]{n})
 	} else {
-		val[levle] = append(val[levle], n)
+		val[level] = append(val[level], n)
 	}
-	val = n.Left.traversalBFS(val, levle+1)
-	val = n.Right.traversalBFS(val, levle+1)
+	val = n.Left.traversalBFS(val, level+1)
+	val = n.Right.traversalBFS(val, level+1)
 	return val
 }

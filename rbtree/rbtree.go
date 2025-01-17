@@ -26,4 +26,3 @@ type Tree[T constraints.Ordered] struct {
 func NewTree[T constraints.Ordered]() *Tree[T] {
 	return &Tree[T]{}
 }
-

@@ -52,7 +52,6 @@ func TestSwap(t *testing.T) {
 	if !slices.Equal(v.Slice(), []int{6, 2, 3, 4, 5, 1}) {
 		t.Fatal("wrong values")
 	}
-
 }
 
 func TestSplitOff(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 )
 
 func verify(t *testing.T, r *Ring[int], N int, sum int) {
-
 	n := r.Len()
 	if n != N {
 		t.Errorf("r.Len() == %d; expected %d", n, N)

@@ -25,6 +25,14 @@ func NewRefreshCache[T any, A any](refreshFunc RefreshFunc[T, A], maxAge time.Du
 	return &c
 }
 
+func (r *RefreshCache[T, A]) GetClearFunc() ClearFunc[T, A] {
+	p := r.ClearFunc.Load()
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
 func (r *RefreshCache[T, A]) SetClearFunc(clearFunc ClearFunc[T, A]) {
 	r.ClearFunc.Store(&clearFunc)
 }
@@ -50,7 +58,7 @@ func (r *RefreshCache[T, A]) Data() *RefreshData[T, A] {
 }
 
 func (r *RefreshCache[T, A]) Clear(ctx context.Context, args A) error {
-	return r.RefreshData.Clear(ctx, *r.ClearFunc.Load(), args)
+	return r.RefreshData.Clear(ctx, r.GetClearFunc(), args)
 }
 
 type RefreshData[T any, A any] struct {
